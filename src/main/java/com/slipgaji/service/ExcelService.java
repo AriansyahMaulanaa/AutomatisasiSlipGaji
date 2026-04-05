@@ -14,15 +14,16 @@ public class ExcelService {
 
     /**
      * Expected Excel columns:
-     * A: Employee ID
-     * B: Name
-     * C: Email
-     * D: Position
-     * E: Department
-     * F: Base Salary
-     * G: Days Present
-     * H: Days Absent
-     * I: Overtime Hours
+     * A: No
+     * B: Employee ID
+     * C: Name
+     * D: Email
+     * E: Position
+     * F: Department
+     * G: Base Salary
+     * H: Days Present
+     * I: Days Absent
+     * J: Overtime Hours
      */
     public List<Employee> readExcelFile(File file) throws IOException {
         List<Employee> employees = new ArrayList<>();
@@ -37,21 +38,21 @@ public class ExcelService {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
 
-                // Skip empty rows
-                Cell firstCell = row.getCell(0);
-                if (firstCell == null || getCellStringValue(firstCell).trim().isEmpty()) continue;
+                // Skip empty rows by checking column 1 (ID Karyawan)
+                Cell idCell = row.getCell(1);
+                if (idCell == null || getCellStringValue(idCell).trim().isEmpty()) continue;
 
                 try {
                     Employee emp = new Employee();
-                    emp.setEmployeeId(getCellStringValue(row.getCell(0)));
-                    emp.setName(getCellStringValue(row.getCell(1)));
-                    emp.setEmail(getCellStringValue(row.getCell(2)));
-                    emp.setPosition(getCellStringValue(row.getCell(3)));
-                    emp.setDepartment(getCellStringValue(row.getCell(4)));
-                    emp.setBaseSalary(getCellNumericValue(row.getCell(5)));
-                    emp.setDaysPresent((int) getCellNumericValue(row.getCell(6)));
-                    emp.setDaysAbsent((int) getCellNumericValue(row.getCell(7)));
-                    emp.setOvertimeHours(getCellNumericValue(row.getCell(8)));
+                    emp.setEmployeeId(getCellStringValue(row.getCell(1))); // B
+                    emp.setName(getCellStringValue(row.getCell(2)));       // C
+                    emp.setEmail(getCellStringValue(row.getCell(3)));      // D
+                    emp.setPosition(getCellStringValue(row.getCell(4)));   // E
+                    emp.setDepartment(getCellStringValue(row.getCell(5))); // F
+                    emp.setBaseSalary(getCellNumericValue(row.getCell(6)));// G
+                    emp.setDaysPresent((int) getCellNumericValue(row.getCell(7)));  // H
+                    emp.setDaysAbsent((int) getCellNumericValue(row.getCell(8)));   // I
+                    emp.setOvertimeHours(getCellNumericValue(row.getCell(9)));      // J
 
                     // Validate required fields
                     if (emp.getEmployeeId().isEmpty() || emp.getName().isEmpty() || emp.getEmail().isEmpty()) {
