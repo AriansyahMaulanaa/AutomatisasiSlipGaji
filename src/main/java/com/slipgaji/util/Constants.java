@@ -15,22 +15,22 @@ public class Constants {
     public static final String DB_PATH = DATA_DIR + File.separator + "slipgaji.db";
     public static final String PDF_DIR = APP_DIR + File.separator + "output" + File.separator + "pdf";
 
-    // Colors - Modern Dark Theme
-    public static final Color PRIMARY = new Color(79, 70, 229);       // Indigo
-    public static final Color PRIMARY_DARK = new Color(55, 48, 163);
-    public static final Color PRIMARY_LIGHT = new Color(129, 120, 248);
-    public static final Color ACCENT = new Color(16, 185, 129);       // Emerald
-    public static final Color ACCENT_WARN = new Color(245, 158, 11);  // Amber
-    public static final Color ACCENT_DANGER = new Color(239, 68, 68); // Red
-    public static final Color BG_DARK = new Color(15, 23, 42);        // Slate 900
-    public static final Color BG_CARD = new Color(30, 41, 59);        // Slate 800
-    public static final Color BG_SURFACE = new Color(51, 65, 85);     // Slate 700
-    public static final Color TEXT_PRIMARY = new Color(248, 250, 252); // Slate 50
-    public static final Color TEXT_SECONDARY = new Color(148, 163, 184); // Slate 400
-    public static final Color BORDER_COLOR = new Color(71, 85, 105);  // Slate 600
-    public static final Color SIDEBAR_BG = new Color(20, 27, 45);
-    public static final Color SUCCESS_BG = new Color(6, 78, 59);
-    public static final Color FAILED_BG = new Color(127, 29, 29);
+    // Colors - Modern Light Theme (macOS style)
+    public static final Color PRIMARY = new Color(0, 122, 255);       // macOS System Blue
+    public static final Color PRIMARY_DARK = new Color(0, 88, 208);
+    public static final Color PRIMARY_LIGHT = new Color(106, 175, 255);
+    public static final Color ACCENT = new Color(52, 199, 89);       // macOS Green
+    public static final Color ACCENT_WARN = new Color(255, 149, 0);  // macOS Orange
+    public static final Color ACCENT_DANGER = new Color(255, 59, 48); // macOS Red
+    public static final Color BG_DARK = new Color(245, 245, 247);     // macOS Gray Background
+    public static final Color BG_CARD = new Color(255, 255, 255);     // White Card
+    public static final Color BG_SURFACE = new Color(235, 235, 240);  // Light Surface
+    public static final Color TEXT_PRIMARY = new Color(0, 0, 0);      // Black Text
+    public static final Color TEXT_SECONDARY = new Color(100, 100, 105); // Gray Text
+    public static final Color BORDER_COLOR = new Color(220, 220, 225);   // Light Border
+    public static final Color SIDEBAR_BG = new Color(235, 235, 240);  // Sidebar Light
+    public static final Color SUCCESS_BG = new Color(228, 248, 232);
+    public static final Color FAILED_BG = new Color(255, 235, 235);
 
     // Fonts
     public static final String FONT_FAMILY = "Segoe UI";

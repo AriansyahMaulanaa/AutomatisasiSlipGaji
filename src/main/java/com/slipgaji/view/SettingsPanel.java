@@ -2,6 +2,7 @@ package com.slipgaji.view;
 
 import com.slipgaji.service.DatabaseService;
 import com.slipgaji.service.EmailService;
+import com.slipgaji.util.ConfigManager;
 import com.slipgaji.util.Constants;
 import com.slipgaji.util.UIHelper;
 
@@ -30,7 +31,7 @@ public class SettingsPanel extends JPanel {
         JPanel header = new JPanel(new BorderLayout());
         header.setBackground(Constants.BG_DARK);
         header.setBorder(new EmptyBorder(0, 0, 16, 0));
-        JLabel title = new JLabel("⚙️ Pengaturan");
+        JLabel title = new JLabel("Pengaturan");
         title.setFont(Constants.FONT_TITLE);
         title.setForeground(Constants.TEXT_PRIMARY);
         header.add(title, BorderLayout.WEST);
@@ -41,8 +42,9 @@ public class SettingsPanel extends JPanel {
         content.setBackground(Constants.BG_DARK);
 
         // SMTP Settings
-        JPanel smtpCard = UIHelper.createCard("📧 Konfigurasi SMTP Email");
-        smtpCard.setLayout(new GridBagLayout());
+        JPanel smtpCard = UIHelper.createCard("Konfigurasi SMTP Email");
+        JPanel smtpForm = new JPanel(new GridBagLayout());
+        smtpForm.setBackground(Constants.BG_CARD);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(6, 8, 6, 8);
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -52,42 +54,48 @@ public class SettingsPanel extends JPanel {
         smtpEmailField = UIHelper.createStyledTextField("email@gmail.com");
         smtpPasswordField = UIHelper.createStyledPasswordField("App Password");
 
-        addFormRow(smtpCard, gbc, 0, "SMTP Host:", smtpHostField);
-        addFormRow(smtpCard, gbc, 1, "SMTP Port:", smtpPortField);
-        addFormRow(smtpCard, gbc, 2, "Email Pengirim:", smtpEmailField);
-        addFormRow(smtpCard, gbc, 3, "Password/App Password:", smtpPasswordField);
+        addFormRow(smtpForm, gbc, 0, "SMTP Host:", smtpHostField);
+        addFormRow(smtpForm, gbc, 1, "SMTP Port:", smtpPortField);
+        addFormRow(smtpForm, gbc, 2, "Email Pengirim:", smtpEmailField);
+        addFormRow(smtpForm, gbc, 3, "Password/App Password:", smtpPasswordField);
 
         gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 2;
         JPanel smtpBtnPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         smtpBtnPanel.setBackground(Constants.BG_CARD);
-        JButton testBtn = UIHelper.createStyledButton("🔌 Test Koneksi", Constants.ACCENT_WARN);
+        JButton testBtn = UIHelper.createStyledButton("Test Koneksi", Constants.ACCENT_WARN);
         testBtn.addActionListener(e -> testSmtp());
-        JButton saveSmtpBtn = UIHelper.createStyledButton("💾 Simpan SMTP", Constants.PRIMARY);
+        JButton saveSmtpBtn = UIHelper.createStyledButton("Simpan SMTP", Constants.PRIMARY);
         saveSmtpBtn.addActionListener(e -> saveSmtpSettings());
         smtpBtnPanel.add(testBtn);
         smtpBtnPanel.add(saveSmtpBtn);
-        smtpCard.add(smtpBtnPanel, gbc);
+        smtpForm.add(smtpBtnPanel, gbc);
+        
+        smtpCard.add(smtpForm, BorderLayout.CENTER);
 
         // Company Settings
-        JPanel companyCard = UIHelper.createCard("🏢 Informasi Perusahaan");
-        companyCard.setLayout(new GridBagLayout());
+        JPanel companyCard = UIHelper.createCard("Informasi Perusahaan");
+        JPanel companyForm = new JPanel(new GridBagLayout());
+        companyForm.setBackground(Constants.BG_CARD);
         GridBagConstraints gbc2 = new GridBagConstraints();
         gbc2.insets = new Insets(6, 8, 6, 8);
         gbc2.fill = GridBagConstraints.HORIZONTAL;
 
         companyNameField = UIHelper.createStyledTextField("PT. Maju Bersama");
         companyAddressField = UIHelper.createStyledTextField("Jl. Sudirman No. 123");
-        addFormRow(companyCard, gbc2, 0, "Nama Perusahaan:", companyNameField);
-        addFormRow(companyCard, gbc2, 1, "Alamat:", companyAddressField);
+        addFormRow(companyForm, gbc2, 0, "Nama Perusahaan:", companyNameField);
+        addFormRow(companyForm, gbc2, 1, "Alamat:", companyAddressField);
 
         gbc2.gridx = 0; gbc2.gridy = 2; gbc2.gridwidth = 2;
-        JButton saveCompBtn = UIHelper.createStyledButton("💾 Simpan", Constants.PRIMARY);
+        JButton saveCompBtn = UIHelper.createStyledButton("Simpan", Constants.PRIMARY);
         saveCompBtn.addActionListener(e -> saveCompanySettings());
-        companyCard.add(saveCompBtn, gbc2);
+        companyForm.add(saveCompBtn, gbc2);
+        
+        companyCard.add(companyForm, BorderLayout.CENTER);
 
         // Salary Settings
-        JPanel salaryCard = UIHelper.createCard("💰 Parameter Gaji");
-        salaryCard.setLayout(new GridBagLayout());
+        JPanel salaryCard = UIHelper.createCard("Parameter Gaji");
+        JPanel salaryForm = new JPanel(new GridBagLayout());
+        salaryForm.setBackground(Constants.BG_CARD);
         GridBagConstraints gbc3 = new GridBagConstraints();
         gbc3.insets = new Insets(6, 8, 6, 8);
         gbc3.fill = GridBagConstraints.HORIZONTAL;
@@ -97,15 +105,17 @@ public class SettingsPanel extends JPanel {
         transportField = UIHelper.createStyledTextField("500000");
         mealField = UIHelper.createStyledTextField("300000");
 
-        addFormRow(salaryCard, gbc3, 0, "Tarif Lembur/Jam (Rp):", overtimeRateField);
-        addFormRow(salaryCard, gbc3, 1, "Hari Kerja/Bulan:", divisorField);
-        addFormRow(salaryCard, gbc3, 2, "Tunj. Transport (Rp):", transportField);
-        addFormRow(salaryCard, gbc3, 3, "Tunj. Makan (Rp):", mealField);
+        addFormRow(salaryForm, gbc3, 0, "Tarif Lembur/Jam (Rp):", overtimeRateField);
+        addFormRow(salaryForm, gbc3, 1, "Hari Kerja/Bulan:", divisorField);
+        addFormRow(salaryForm, gbc3, 2, "Tunj. Transport (Rp):", transportField);
+        addFormRow(salaryForm, gbc3, 3, "Tunj. Makan (Rp):", mealField);
 
         gbc3.gridx = 0; gbc3.gridy = 4; gbc3.gridwidth = 2;
-        JButton saveSalaryBtn = UIHelper.createStyledButton("💾 Simpan Parameter", Constants.PRIMARY);
+        JButton saveSalaryBtn = UIHelper.createStyledButton("Simpan Parameter", Constants.PRIMARY);
         saveSalaryBtn.addActionListener(e -> saveSalarySettings());
-        salaryCard.add(saveSalaryBtn, gbc3);
+        salaryForm.add(saveSalaryBtn, gbc3);
+        
+        salaryCard.add(salaryForm, BorderLayout.CENTER);
 
         content.add(smtpCard);
         content.add(Box.createVerticalStrut(16));
@@ -113,7 +123,11 @@ public class SettingsPanel extends JPanel {
         content.add(Box.createVerticalStrut(16));
         content.add(salaryCard);
 
-        JScrollPane scrollPane = new JScrollPane(content);
+        JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.setBackground(Constants.BG_DARK);
+        wrapper.add(content, BorderLayout.NORTH);
+
+        JScrollPane scrollPane = new JScrollPane(wrapper);
         scrollPane.setBorder(null);
         scrollPane.getViewport().setBackground(Constants.BG_DARK);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
@@ -121,21 +135,26 @@ public class SettingsPanel extends JPanel {
     }
 
     private void addFormRow(JPanel panel, GridBagConstraints gbc, int row, String label, JComponent field) {
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1; gbc.weightx = 0.3;
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1; gbc.weightx = 0.0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.WEST;
         JLabel lbl = new JLabel(label);
         lbl.setFont(Constants.FONT_BODY);
         lbl.setForeground(Constants.TEXT_SECONDARY);
+        lbl.setPreferredSize(new Dimension(170, 24)); // Fixed label width for neatness
         panel.add(lbl, gbc);
-        gbc.gridx = 1; gbc.weightx = 0.7;
+        
+        gbc.gridx = 1; gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         field.setPreferredSize(new Dimension(300, 36));
         panel.add(field, gbc);
     }
 
     private void loadSettings() {
-        smtpHostField.setText(db.getSetting("smtp_host"));
-        smtpPortField.setText(db.getSetting("smtp_port"));
-        smtpEmailField.setText(db.getSetting("smtp_email"));
-        smtpPasswordField.setText(db.getSetting("smtp_password"));
+        smtpHostField.setText(ConfigManager.get("smtp_host", "smtp.gmail.com"));
+        smtpPortField.setText(ConfigManager.get("smtp_port", "587"));
+        smtpEmailField.setText(ConfigManager.get("smtp_email", ""));
+        smtpPasswordField.setText(ConfigManager.get("smtp_password", ""));
         companyNameField.setText(db.getSetting("company_name"));
         companyAddressField.setText(db.getSetting("company_address"));
         overtimeRateField.setText(db.getSetting("overtime_rate_per_hour"));
@@ -145,10 +164,10 @@ public class SettingsPanel extends JPanel {
     }
 
     private void saveSmtpSettings() {
-        db.saveSetting("smtp_host", smtpHostField.getText().trim());
-        db.saveSetting("smtp_port", smtpPortField.getText().trim());
-        db.saveSetting("smtp_email", smtpEmailField.getText().trim());
-        db.saveSetting("smtp_password", new String(smtpPasswordField.getPassword()));
+        ConfigManager.set("smtp_host", smtpHostField.getText().trim());
+        ConfigManager.set("smtp_port", smtpPortField.getText().trim());
+        ConfigManager.set("smtp_email", smtpEmailField.getText().trim());
+        ConfigManager.set("smtp_password", new String(smtpPasswordField.getPassword()));
         UIHelper.showSuccess(this, "Konfigurasi SMTP berhasil disimpan.");
     }
 

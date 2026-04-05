@@ -55,6 +55,10 @@ public class PayslipController {
         }
     }
 
+    public void deletePayslip(int id) {
+        db.deletePayslip(id);
+    }
+
     public interface ProgressCallback {
         void onProgress(int current, int total, String name);
     }

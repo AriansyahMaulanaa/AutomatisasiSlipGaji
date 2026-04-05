@@ -16,7 +16,7 @@ public class UIHelper {
     private static final DecimalFormat CURRENCY_FORMAT;
 
     static {
-        DecimalFormatSymbols symbols = new DecimalFormatSymbols(new Locale("id", "ID"));
+        DecimalFormatSymbols symbols = new DecimalFormatSymbols(new Locale.Builder().setLanguage("id").setRegion("ID").build());
         symbols.setGroupingSeparator('.');
         symbols.setDecimalSeparator(',');
         CURRENCY_FORMAT = new DecimalFormat("Rp #,##0", symbols);
@@ -32,14 +32,16 @@ public class UIHelper {
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                if (getModel().isPressed()) {
+                if (!isEnabled()) {
+                    g2.setColor(Constants.BORDER_COLOR);
+                } else if (getModel().isPressed()) {
                     g2.setColor(bgColor.darker());
                 } else if (getModel().isRollover()) {
                     g2.setColor(bgColor.brighter());
                 } else {
                     g2.setColor(bgColor);
                 }
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 24, 24);
                 g2.dispose();
                 super.paintComponent(g);
             }
@@ -201,16 +203,16 @@ public class UIHelper {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(Constants.BG_CARD);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 24, 24);
                 g2.setColor(accentColor);
-                g2.fillRoundRect(0, 0, 4, getHeight(), 4, 4);
+                g2.fillRoundRect(0, 0, 8, getHeight(), 24, 24);
                 g2.dispose();
                 super.paintComponent(g);
             }
         };
         card.setText("<html><div style='padding:8px'>"
-                + "<span style='color:#94a3b8;font-size:10px'>" + label + "</span><br>"
-                + "<span style='color:#f8fafc;font-size:20px'><b>" + value + "</b></span>"
+                + "<span style='color:#666666;font-size:10px'>" + label + "</span><br>"
+                + "<span style='color:#111111;font-size:20px'><b>" + value + "</b></span>"
                 + "</div></html>");
         card.setFont(Constants.FONT_BODY);
         card.setForeground(Constants.TEXT_PRIMARY);

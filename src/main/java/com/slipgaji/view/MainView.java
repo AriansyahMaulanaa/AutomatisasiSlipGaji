@@ -85,7 +85,7 @@ public class MainView extends JFrame {
         headerPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
         headerPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
 
-        JLabel appName = new JLabel("💰 " + Constants.APP_NAME);
+        JLabel appName = new JLabel(Constants.APP_NAME);
         appName.setFont(Constants.FONT_SUBTITLE);
         appName.setForeground(Constants.TEXT_PRIMARY);
         appName.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -116,10 +116,10 @@ public class MainView extends JFrame {
         sidebar.add(menuLabel);
 
         // Menu items
-        addMenuItem(sidebar, "dashboard", "📊", "Dashboard");
-        addMenuItem(sidebar, "import", "📥", "Import Data");
-        addMenuItem(sidebar, "payslip", "📄", "Slip Gaji");
-        addMenuItem(sidebar, "history", "📋", "Histori Pengiriman");
+        addMenuItem(sidebar, "dashboard", "", "Dashboard");
+        addMenuItem(sidebar, "import", "", "Import Data");
+        addMenuItem(sidebar, "payslip", "", "Slip Gaji");
+        addMenuItem(sidebar, "history", "", "Histori Pengiriman");
 
         if (currentUser.isGeneralManager()) {
             sidebar.add(Box.createVerticalStrut(12));
@@ -129,7 +129,7 @@ public class MainView extends JFrame {
             adminLabel.setBorder(new EmptyBorder(0, 16, 8, 0));
             adminLabel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
             sidebar.add(adminLabel);
-            addMenuItem(sidebar, "settings", "⚙️", "Pengaturan");
+            addMenuItem(sidebar, "settings", "", "Pengaturan");
         }
 
         sidebar.add(Box.createVerticalGlue());
@@ -146,7 +146,7 @@ public class MainView extends JFrame {
         userPanel.setBorder(new EmptyBorder(12, 16, 12, 16));
         userPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
 
-        JLabel userName = new JLabel("👤 " + currentUser.getUsername());
+        JLabel userName = new JLabel(currentUser.getUsername());
         userName.setFont(Constants.FONT_BODY);
         userName.setForeground(Constants.TEXT_PRIMARY);
         userName.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -156,7 +156,7 @@ public class MainView extends JFrame {
         roleLabel.setForeground(Constants.ACCENT);
         roleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JButton logoutBtn = UIHelper.createStyledButton("🚪 Logout", Constants.ACCENT_DANGER);
+        JButton logoutBtn = UIHelper.createStyledButton("Logout", Constants.ACCENT_DANGER);
         logoutBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
         logoutBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
         logoutBtn.setFont(Constants.FONT_SMALL);
@@ -179,7 +179,7 @@ public class MainView extends JFrame {
     }
 
     private void addMenuItem(JPanel sidebar, String key, String icon, String text) {
-        JButton btn = UIHelper.createSidebarButton(text, icon);
+        JButton btn = UIHelper.createSidebarButton(text, "");
         btn.addActionListener(e -> switchPanel(key));
         menuButtons.put(key, btn);
         sidebar.add(btn);
