@@ -38,7 +38,7 @@ public class PayslipPanel extends JPanel {
         headerPanel.setBackground(Constants.BG_DARK);
         headerPanel.setBorder(new EmptyBorder(0, 0, 16, 0));
 
-        JLabel pageTitle = new JLabel("📄 Slip Gaji Karyawan");
+        JLabel pageTitle = new JLabel("Slip Gaji Karyawan");
         pageTitle.setFont(Constants.FONT_TITLE);
         pageTitle.setForeground(Constants.TEXT_PRIMARY);
         headerPanel.add(pageTitle, BorderLayout.WEST);
@@ -57,13 +57,13 @@ public class PayslipPanel extends JPanel {
         periodCombo.setPreferredSize(new Dimension(150, 34));
         periodCombo.addActionListener(e -> loadPayslips());
 
-        JButton refreshBtn = UIHelper.createStyledButton("🔄 Refresh", Constants.BG_SURFACE);
+        JButton refreshBtn = UIHelper.createStyledButton("Refresh", Constants.BG_SURFACE);
         refreshBtn.addActionListener(e -> refresh());
 
-        JButton genAllBtn = UIHelper.createStyledButton("📑 Generate Semua PDF", Constants.PRIMARY);
+        JButton genAllBtn = UIHelper.createStyledButton("Generate Semua PDF", Constants.PRIMARY);
         genAllBtn.addActionListener(e -> generateAllPdfs());
 
-        JButton sendAllBtn = UIHelper.createStyledButton("📧 Kirim Semua Email", Constants.ACCENT);
+        JButton sendAllBtn = UIHelper.createStyledButton("Kirim Semua Email", Constants.ACCENT);
         sendAllBtn.addActionListener(e -> sendAllEmails());
 
         controlCard.add(periodLabel);
@@ -91,7 +91,7 @@ public class PayslipPanel extends JPanel {
         progressPanel.add(statusLabel, BorderLayout.SOUTH);
 
         // Table
-        String[] columns = {"No", "ID", "ID Karyawan", "Nama", "Email", "Periode",
+        String[] columns = {"No", "ID", "ID Karyawan", "Nama", "Email", "Periode", "Batch",
                 "Gaji Pokok", "Lembur", "Potongan", "Tunjangan", "Gaji Bersih", "PDF"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
@@ -116,23 +116,28 @@ public class PayslipPanel extends JPanel {
 
         // Context menu
         JPopupMenu popup = new JPopupMenu();
-        JMenuItem previewItem = new JMenuItem("👁 Preview PDF");
+        JMenuItem previewItem = new JMenuItem("Preview PDF");
         previewItem.addActionListener(e -> previewSelected());
-        JMenuItem sendItem = new JMenuItem("📧 Kirim Email");
+        JMenuItem sendItem = new JMenuItem("Kirim Email");
         sendItem.addActionListener(e -> sendSelected());
-        JMenuItem genItem = new JMenuItem("📑 Generate PDF");
+        JMenuItem genItem = new JMenuItem("Generate PDF");
         genItem.addActionListener(e -> generateSelectedPdf());
+        JMenuItem deleteItem = new JMenuItem("Hapus Data");
+        deleteItem.addActionListener(e -> deleteSelected());
+
         popup.add(previewItem);
         popup.add(genItem);
         popup.addSeparator();
         popup.add(sendItem);
+        popup.addSeparator();
+        popup.add(deleteItem);
         table.setComponentPopupMenu(popup);
 
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.getViewport().setBackground(Constants.BG_CARD);
         scrollPane.setBorder(BorderFactory.createLineBorder(Constants.BORDER_COLOR));
 
-        JPanel tableCard = UIHelper.createCard("📋 Daftar Slip Gaji (klik kanan untuk aksi, double-click untuk preview)");
+        JPanel tableCard = UIHelper.createCard("Daftar Slip Gaji (klik kanan untuk aksi, double-click untuk preview)");
         tableCard.add(scrollPane, BorderLayout.CENTER);
 
         // Assembly
@@ -168,6 +173,7 @@ public class PayslipPanel extends JPanel {
         tableModel.setRowCount(0);
         int no = 1;
         for (Payslip p : currentPayslips) {
+            String batch = p.getCreatedAt() != null && p.getCreatedAt().length() >= 10 ? p.getCreatedAt().substring(0, 10) : "-";
             tableModel.addRow(new Object[]{
                     no++,
                     p.getId(),
@@ -175,12 +181,13 @@ public class PayslipPanel extends JPanel {
                     p.getEmployeeName(),
                     p.getEmployeeEmail(),
                     p.getPeriod(),
+                    batch,
                     UIHelper.formatCurrency(p.getBaseSalary()),
                     UIHelper.formatCurrency(p.getOvertimePay()),
                     UIHelper.formatCurrency(p.getDeductions()),
                     UIHelper.formatCurrency(p.getAllowances()),
                     UIHelper.formatCurrency(p.getNetSalary()),
-                    (p.getPdfPath() != null && !p.getPdfPath().isEmpty()) ? "✅" : "❌"
+                    (p.getPdfPath() != null && !p.getPdfPath().isEmpty()) ? "Tersedia" : "Belum"
             });
         }
         statusLabel.setText("Total: " + currentPayslips.size() + " slip gaji");
@@ -226,6 +233,17 @@ public class PayslipPanel extends JPanel {
             loadPayslips();
         } catch (Exception ex) {
             UIHelper.showError(this, "Gagal generate PDF: " + ex.getMessage());
+        }
+    }
+
+    private void deleteSelected() {
+        Payslip payslip = getSelectedPayslip();
+        if (payslip == null) return;
+
+        if (UIHelper.showConfirm(this, "Apakah Anda yakin ingin menghapus data slip gaji untuk \n" + payslip.getEmployeeName() + " ?")) {
+            payslipController.deletePayslip(payslip.getId());
+            UIHelper.showSuccess(this, "Data slip gaji berhasil dihapus");
+            loadPayslips();
         }
     }
 

@@ -4,6 +4,7 @@ import com.slipgaji.model.Payslip;
 import com.slipgaji.model.SendHistory;
 import com.slipgaji.service.DatabaseService;
 import com.slipgaji.service.EmailService;
+import com.slipgaji.util.ConfigManager;
 
 import java.util.List;
 
@@ -15,10 +16,10 @@ public class EmailController {
     }
 
     private EmailService createEmailService() {
-        String host = db.getSetting("smtp_host");
-        String port = db.getSetting("smtp_port");
-        String email = db.getSetting("smtp_email");
-        String password = db.getSetting("smtp_password");
+        String host = ConfigManager.get("smtp_host", "smtp.gmail.com");
+        String port = ConfigManager.get("smtp_port", "587");
+        String email = ConfigManager.get("smtp_email", "");
+        String password = ConfigManager.get("smtp_password", "");
 
         if (email == null || email.isEmpty() || password == null || password.isEmpty()) {
             throw new IllegalStateException("Konfigurasi SMTP belum lengkap. Silakan atur di Settings.");

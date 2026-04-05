@@ -277,6 +277,16 @@ public class DatabaseService {
         return p;
     }
 
+    public void deletePayslip(int id) {
+        String sql = "DELETE FROM payslips WHERE id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
     // ================= SEND HISTORY OPERATIONS =================
 
     public void saveSendHistory(SendHistory history) {

@@ -1,6 +1,6 @@
 package com.slipgaji;
 
-import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLightLaf;
 import com.slipgaji.service.DatabaseService;
 import com.slipgaji.view.LoginView;
 
@@ -21,8 +21,7 @@ public class App {
         }
 
         try {
-            // Set modern dark theme from FlatLaf
-            UIManager.setLookAndFeel(new FlatDarkLaf());
+            UIManager.setLookAndFeel(new FlatLightLaf());
         } catch (Exception e) {
             System.err.println("Failed to initialize LaF");
         }

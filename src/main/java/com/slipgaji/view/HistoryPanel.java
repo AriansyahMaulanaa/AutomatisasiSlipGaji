@@ -47,7 +47,7 @@ public class HistoryPanel extends JPanel {
         periodCombo.setFont(Constants.FONT_BODY);
         periodCombo.setPreferredSize(new Dimension(150, 34));
         periodCombo.addActionListener(e -> loadHistory());
-        JButton refreshBtn = UIHelper.createStyledButton("🔄 Refresh", Constants.BG_SURFACE);
+        JButton refreshBtn = UIHelper.createStyledButton("Refresh", Constants.BG_SURFACE);
         refreshBtn.addActionListener(e -> refresh());
         controlCard.add(periodLabel);
         controlCard.add(periodCombo);

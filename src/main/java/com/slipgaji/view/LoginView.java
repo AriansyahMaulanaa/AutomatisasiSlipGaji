@@ -29,7 +29,7 @@ public class LoginView extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(480, 620);
         setLocationRelativeTo(null);
-        setResizable(false);
+        setResizable(true); // Made responsive
 
         // Main panel with gradient background
         JPanel mainPanel = new JPanel() {
@@ -67,7 +67,7 @@ public class LoginView extends JFrame {
         card.setPreferredSize(new Dimension(380, 480));
 
         // Logo / Icon
-        JLabel iconLabel = new JLabel("💰") {
+        JLabel iconLabel = new JLabel("") {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
@@ -78,7 +78,6 @@ public class LoginView extends JFrame {
                 super.paintComponent(g);
             }
         };
-        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 30));
         iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
         iconLabel.setPreferredSize(new Dimension(64, 64));
         iconLabel.setMaximumSize(new Dimension(64, 64));
@@ -122,14 +121,14 @@ public class LoginView extends JFrame {
         errorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Login button
-        loginButton = UIHelper.createStyledButton("🔐  Masuk", Constants.PRIMARY);
+        loginButton = UIHelper.createStyledButton("Masuk", Constants.PRIMARY);
         loginButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
         loginButton.setAlignmentX(Component.LEFT_ALIGNMENT);
         loginButton.addActionListener(e -> doLogin());
 
         // Default credentials info
         JLabel infoLabel = new JLabel("<html><center><span style='color:#64748b;font-size:9px'>"
-                + "Default: supervisor / supervisor123<br>GM: gm / manager123</span></center></html>");
+                + "Akses eksklusif untuk Manager / Admin</span></center></html>");
         infoLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         // Enter key listener
@@ -176,6 +175,15 @@ public class LoginView extends JFrame {
 
             User user = authController.login(username, password);
 
+            if (user.getRole() != User.Role.GENERAL_MANAGER) {
+                errorLabel.setText("⚠ Akses Ditolak! Hanya untuk Admin/Manager.");
+                loginButton.setEnabled(true);
+                loginButton.setText("Masuk");
+                shakeWindow();
+                AuthController.logout();
+                return;
+            }
+
             // Open main view
             SwingUtilities.invokeLater(() -> {
                 MainView mainView = new MainView(user);
@@ -186,7 +194,7 @@ public class LoginView extends JFrame {
         } catch (IllegalArgumentException ex) {
             errorLabel.setText("⚠ " + ex.getMessage());
             loginButton.setEnabled(true);
-            loginButton.setText("🔐  Masuk");
+            loginButton.setText("Masuk");
             shakeWindow();
         }
     }

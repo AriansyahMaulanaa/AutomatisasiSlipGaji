@@ -171,6 +171,14 @@ public class PdfService {
         confidential.setSpacingBefore(4);
         document.add(confidential);
 
+        Paragraph watermark = new Paragraph(
+                "Dibuat oleh: Mahasiswa Universitas Pamulang",
+                new Font(Font.HELVETICA, 8, Font.ITALIC, new Color(180, 180, 180))
+        );
+        watermark.setAlignment(Element.ALIGN_CENTER);
+        watermark.setSpacingBefore(20);
+        document.add(watermark);
+
         document.close();
         return filePath;
     }

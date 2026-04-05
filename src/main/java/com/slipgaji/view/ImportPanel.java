@@ -42,7 +42,7 @@ public class ImportPanel extends JPanel {
         headerPanel.setBackground(Constants.BG_DARK);
         headerPanel.setBorder(new EmptyBorder(0, 0, 16, 0));
 
-        JLabel pageTitle = new JLabel("📥 Import Data Presensi");
+        JLabel pageTitle = new JLabel("Import Data Presensi");
         pageTitle.setFont(Constants.FONT_TITLE);
         pageTitle.setForeground(Constants.TEXT_PRIMARY);
         headerPanel.add(pageTitle, BorderLayout.WEST);
@@ -56,7 +56,7 @@ public class ImportPanel extends JPanel {
         JPanel fileRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
         fileRow.setBackground(Constants.BG_CARD);
 
-        JButton browseBtn = UIHelper.createStyledButton("📂 Pilih File Excel", Constants.PRIMARY);
+        JButton browseBtn = UIHelper.createStyledButton("Pilih File Excel", Constants.PRIMARY);
         browseBtn.addActionListener(e -> browseFile());
 
         fileLabel = new JLabel("Belum ada file dipilih");
@@ -81,7 +81,7 @@ public class ImportPanel extends JPanel {
         periodField.setText(currentPeriod);
         periodField.setPreferredSize(new Dimension(140, 36));
 
-        processButton = UIHelper.createStyledButton("⚡ Proses & Simpan", Constants.ACCENT);
+        processButton = UIHelper.createStyledButton("Proses & Simpan", Constants.ACCENT);
         processButton.setEnabled(false);
         processButton.addActionListener(e -> processData());
 
@@ -110,7 +110,7 @@ public class ImportPanel extends JPanel {
         scrollPane.getViewport().setBackground(Constants.BG_CARD);
         scrollPane.setBorder(BorderFactory.createLineBorder(Constants.BORDER_COLOR));
 
-        JPanel tableCard = UIHelper.createCard("📋 Preview Data Import");
+        JPanel tableCard = UIHelper.createCard("Preview Data Import");
         tableCard.add(scrollPane, BorderLayout.CENTER);
 
         JPanel centerPanel = new JPanel(new BorderLayout());
