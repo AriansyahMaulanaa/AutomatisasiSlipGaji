@@ -27,6 +27,7 @@ public class DatabaseService {
         connection = DriverManager.getConnection(url);
         connection.setAutoCommit(true);
         executeSqlScript();
+        runMigrations();
     }
 
     private void executeSqlScript() throws IOException, SQLException {
@@ -42,6 +43,39 @@ public class DatabaseService {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Run schema migrations for existing databases that don't have new columns.
+     */
+    private void runMigrations() {
+        // Add night_shift_incentive column if missing
+        addColumnIfNotExists("payslips", "night_shift_incentive", "REAL DEFAULT 0");
+        // Add is_night_shift column if missing
+        addColumnIfNotExists("payslips", "is_night_shift", "INTEGER DEFAULT 0");
+        // Add night_shift_rate setting if missing
+        try (PreparedStatement ps = connection.prepareStatement(
+                "INSERT OR IGNORE INTO settings (key, value) VALUES ('night_shift_rate', '50000')")) {
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void addColumnIfNotExists(String table, String column, String type) {
+        try {
+            // Check if column exists
+            DatabaseMetaData meta = connection.getMetaData();
+            ResultSet rs = meta.getColumns(null, null, table, column);
+            if (!rs.next()) {
+                try (Statement stmt = connection.createStatement()) {
+                    stmt.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
+                }
+            }
+            rs.close();
+        } catch (SQLException e) {
+            // Column might already exist; ignore
         }
     }
 
@@ -152,7 +186,8 @@ public class DatabaseService {
             if (rs.next()) {
                 int id = rs.getInt("id");
                 String update = "UPDATE payslips SET days_present=?, days_absent=?, overtime_hours=?, " +
-                        "base_salary=?, overtime_pay=?, deductions=?, allowances=?, net_salary=?, pdf_path=? WHERE id=?";
+                        "base_salary=?, overtime_pay=?, deductions=?, allowances=?, net_salary=?, " +
+                        "night_shift_incentive=?, is_night_shift=?, pdf_path=? WHERE id=?";
                 try (PreparedStatement ups = connection.prepareStatement(update)) {
                     ups.setInt(1, payslip.getDaysPresent());
                     ups.setInt(2, payslip.getDaysAbsent());
@@ -162,8 +197,10 @@ public class DatabaseService {
                     ups.setDouble(6, payslip.getDeductions());
                     ups.setDouble(7, payslip.getAllowances());
                     ups.setDouble(8, payslip.getNetSalary());
-                    ups.setString(9, payslip.getPdfPath());
-                    ups.setInt(10, id);
+                    ups.setDouble(9, payslip.getNightShiftIncentive());
+                    ups.setInt(10, payslip.isNightShift() ? 1 : 0);
+                    ups.setString(11, payslip.getPdfPath());
+                    ups.setInt(12, id);
                     ups.executeUpdate();
                 }
                 return id;
@@ -171,7 +208,8 @@ public class DatabaseService {
         } catch (SQLException e) { e.printStackTrace(); }
 
         String insert = "INSERT INTO payslips (employee_id, period, days_present, days_absent, overtime_hours, " +
-                "base_salary, overtime_pay, deductions, allowances, net_salary, pdf_path) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
+                "base_salary, overtime_pay, deductions, allowances, net_salary, night_shift_incentive, is_night_shift, pdf_path) " +
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
         try (PreparedStatement ps = connection.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, payslip.getEmployeeId());
             ps.setString(2, payslip.getPeriod());
@@ -183,7 +221,9 @@ public class DatabaseService {
             ps.setDouble(8, payslip.getDeductions());
             ps.setDouble(9, payslip.getAllowances());
             ps.setDouble(10, payslip.getNetSalary());
-            ps.setString(11, payslip.getPdfPath());
+            ps.setDouble(11, payslip.getNightShiftIncentive());
+            ps.setInt(12, payslip.isNightShift() ? 1 : 0);
+            ps.setString(13, payslip.getPdfPath());
             ps.executeUpdate();
             ResultSet keys = ps.getGeneratedKeys();
             if (keys.next()) return keys.getInt(1);
@@ -224,6 +264,41 @@ public class DatabaseService {
             }
         } catch (SQLException e) { e.printStackTrace(); }
         return periods;
+    }
+
+    public List<PeriodSummary> getPayslipPeriodSummaries() {
+        List<PeriodSummary> summaries = new ArrayList<>();
+        String sql = "SELECT p.period, COUNT(p.id) as slip_count, SUM(p.net_salary) as total_salary, " +
+                     "SUM(CASE WHEN p.pdf_path IS NOT NULL AND p.pdf_path != '' THEN 1 ELSE 0 END) as pdf_count " +
+                     "FROM payslips p GROUP BY p.period ORDER BY p.period DESC";
+
+        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                PeriodSummary summary = new PeriodSummary();
+                String period = rs.getString("period");
+                summary.setPeriod(period);
+                summary.setSlipCount(rs.getInt("slip_count"));
+                summary.setTotalSalary(rs.getDouble("total_salary"));
+                summary.setPdfGeneratedCount(rs.getInt("pdf_count"));
+
+                // We need to count how many successful emails were sent for this period
+                int sentCount = 0;
+                String sentSql = "SELECT COUNT(DISTINCT payslip_id) FROM send_history WHERE period = ? AND status = 'SUCCESS'";
+                try (PreparedStatement ps = connection.prepareStatement(sentSql)) {
+                    ps.setString(1, period);
+                    ResultSet rsSent = ps.executeQuery();
+                    if (rsSent.next()) {
+                        sentCount = rsSent.getInt(1);
+                    }
+                }
+                summary.setEmailSentCount(sentCount);
+                
+                summaries.add(summary);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return summaries;
     }
 
     public Payslip getPayslipById(int id) {
@@ -267,6 +342,8 @@ public class DatabaseService {
         p.setDeductions(rs.getDouble("deductions"));
         p.setAllowances(rs.getDouble("allowances"));
         p.setNetSalary(rs.getDouble("net_salary"));
+        p.setNightShiftIncentive(getColumnSafe(rs, "night_shift_incentive", 0.0));
+        p.setNightShift(getColumnSafe(rs, "is_night_shift", 0) == 1);
         p.setPdfPath(rs.getString("pdf_path"));
         p.setCreatedAt(rs.getString("created_at"));
         p.setEmployeeName(rs.getString("emp_name"));
@@ -275,6 +352,22 @@ public class DatabaseService {
         p.setPosition(rs.getString("position"));
         p.setDepartment(rs.getString("department"));
         return p;
+    }
+
+    private double getColumnSafe(ResultSet rs, String column, double defaultValue) {
+        try {
+            return rs.getDouble(column);
+        } catch (SQLException e) {
+            return defaultValue;
+        }
+    }
+
+    private int getColumnSafe(ResultSet rs, String column, int defaultValue) {
+        try {
+            return rs.getInt(column);
+        } catch (SQLException e) {
+            return defaultValue;
+        }
     }
 
     public void deletePayslip(int id) {

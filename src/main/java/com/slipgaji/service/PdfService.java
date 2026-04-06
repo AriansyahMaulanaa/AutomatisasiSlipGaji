@@ -96,13 +96,16 @@ public class PdfService {
         document.add(attTitle);
         document.add(createLine());
 
-        PdfPTable attTable = new PdfPTable(3);
+        int attCols = payslip.isNightShift() ? 4 : 3;
+        PdfPTable attTable = new PdfPTable(attCols);
         attTable.setWidthPercentage(100);
-        attTable.setWidths(new float[]{33, 33, 34});
 
-        addAttendanceCell(attTable, "Hari Hadir", String.valueOf(payslip.getDaysPresent()) + " hari", labelFont, valueFont);
-        addAttendanceCell(attTable, "Hari Absen", String.valueOf(payslip.getDaysAbsent()) + " hari", labelFont, valueFont);
-        addAttendanceCell(attTable, "Jam Lembur", String.valueOf(payslip.getOvertimeHours()) + " jam", labelFont, valueFont);
+        addAttendanceCell(attTable, "Hari Hadir", payslip.getDaysPresent() + " hari", labelFont, valueFont);
+        addAttendanceCell(attTable, "Hari Absen", payslip.getDaysAbsent() + " hari", labelFont, valueFont);
+        addAttendanceCell(attTable, "Jam Lembur", payslip.getOvertimeHours() + " jam", labelFont, valueFont);
+        if (payslip.isNightShift()) {
+            addAttendanceCell(attTable, "Shift Malam", "Ya", labelFont, valueFont);
+        }
 
         document.add(attTable);
         document.add(new Paragraph(" "));
@@ -122,6 +125,11 @@ public class PdfService {
         addSalaryRow(salaryTable, "Gaji Pokok", UIHelper.formatCurrency(payslip.getBaseSalary()), normalFont, valueFont, false);
         addSalaryRow(salaryTable, "Uang Lembur (" + payslip.getOvertimeHours() + " jam)", UIHelper.formatCurrency(payslip.getOvertimePay()), normalFont, valueFont, true);
         addSalaryRow(salaryTable, "Tunjangan (Transport + Makan)", UIHelper.formatCurrency(payslip.getAllowances()), normalFont, valueFont, false);
+
+        // Night Shift Incentive (if applicable)
+        if (payslip.getNightShiftIncentive() > 0) {
+            addSalaryRow(salaryTable, "Insentif Shift Malam", UIHelper.formatCurrency(payslip.getNightShiftIncentive()), normalFont, valueFont, true);
+        }
 
         // Potongan
         addSalaryHeader(salaryTable, "POTONGAN");
@@ -157,7 +165,7 @@ public class PdfService {
         document.add(new Paragraph(" "));
 
         Paragraph disclaimer = new Paragraph(
-                "Dokumen ini digenerate secara otomatis oleh sistem SlipGaji Pro dan sah tanpa tanda tangan.",
+                "Dokumen ini digenerate secara otomatis oleh sistem SlipGaji Pro v" + Constants.APP_VERSION + " dan sah tanpa tanda tangan.",
                 footerFont
         );
         disclaimer.setAlignment(Element.ALIGN_CENTER);

@@ -9,13 +9,16 @@ public class SalaryCalculator {
     private int dailyRateDivisor;
     private double transportAllowance;
     private double mealAllowance;
+    private double nightShiftRate;
 
     public SalaryCalculator(double overtimeRatePerHour, int dailyRateDivisor,
-                            double transportAllowance, double mealAllowance) {
+                            double transportAllowance, double mealAllowance,
+                            double nightShiftRate) {
         this.overtimeRatePerHour = overtimeRatePerHour;
         this.dailyRateDivisor = dailyRateDivisor;
         this.transportAllowance = transportAllowance;
         this.mealAllowance = mealAllowance;
+        this.nightShiftRate = nightShiftRate;
     }
 
     /**
@@ -23,8 +26,9 @@ public class SalaryCalculator {
      * - Daily rate = Base Salary / Work Days (22)
      * - Deductions = Daily Rate * Days Absent
      * - Overtime Pay = Overtime Hours * Overtime Rate Per Hour
+     * - Night Shift Incentive = nightShiftRate (if night shift)
      * - Allowances = Transport + Meal
-     * - Net Salary = Base Salary - Deductions + Overtime Pay + Allowances
+     * - Net Salary = Base Salary - Deductions + Overtime Pay + Allowances + Night Shift Incentive
      */
     public Payslip calculate(Employee employee, String period) {
         double baseSalary = employee.getBaseSalary();
@@ -33,7 +37,13 @@ public class SalaryCalculator {
         double deductions = dailyRate * employee.getDaysAbsent();
         double overtimePay = employee.getOvertimeHours() * overtimeRatePerHour;
         double allowances = transportAllowance + mealAllowance;
-        double netSalary = baseSalary - deductions + overtimePay + allowances;
+
+        double nightShiftIncentive = 0;
+        if (employee.isNightShift()) {
+            nightShiftIncentive = nightShiftRate;
+        }
+
+        double netSalary = baseSalary - deductions + overtimePay + allowances + nightShiftIncentive;
 
         Payslip payslip = new Payslip();
         payslip.setPeriod(period);
@@ -44,6 +54,8 @@ public class SalaryCalculator {
         payslip.setOvertimePay(overtimePay);
         payslip.setDeductions(deductions);
         payslip.setAllowances(allowances);
+        payslip.setNightShiftIncentive(nightShiftIncentive);
+        payslip.setNightShift(employee.isNightShift());
         payslip.setNetSalary(netSalary);
 
         return payslip;
@@ -54,4 +66,5 @@ public class SalaryCalculator {
     public double getMealAllowance() { return mealAllowance; }
     public double getOvertimeRatePerHour() { return overtimeRatePerHour; }
     public int getDailyRateDivisor() { return dailyRateDivisor; }
+    public double getNightShiftRate() { return nightShiftRate; }
 }

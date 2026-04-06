@@ -34,13 +34,13 @@ public class ImportPanel extends JPanel {
 
     private void initUI() {
         setLayout(new BorderLayout());
-        setBackground(Constants.BG_DARK);
-        setBorder(new EmptyBorder(24, 24, 24, 24));
+        setOpaque(false);
+        setBorder(new EmptyBorder(32, 32, 32, 32));
 
         // Header
         JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(Constants.BG_DARK);
-        headerPanel.setBorder(new EmptyBorder(0, 0, 16, 0));
+        headerPanel.setOpaque(false);
+        headerPanel.setBorder(new EmptyBorder(0, 0, 20, 0));
 
         JLabel pageTitle = new JLabel("Import Data Presensi");
         pageTitle.setFont(Constants.FONT_TITLE);
@@ -54,7 +54,7 @@ public class ImportPanel extends JPanel {
 
         // Row 1: File selection
         JPanel fileRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
-        fileRow.setBackground(Constants.BG_CARD);
+        fileRow.setOpaque(false);
 
         JButton browseBtn = UIHelper.createStyledButton("Pilih File Excel", Constants.PRIMARY);
         browseBtn.addActionListener(e -> browseFile());
@@ -66,11 +66,11 @@ public class ImportPanel extends JPanel {
         fileRow.add(browseBtn);
         fileRow.add(fileLabel);
         controlCard.add(fileRow);
-        controlCard.add(Box.createVerticalStrut(12));
+        controlCard.add(Box.createVerticalStrut(14));
 
         // Row 2: Period + Process
         JPanel periodRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
-        periodRow.setBackground(Constants.BG_CARD);
+        periodRow.setOpaque(false);
 
         JLabel periodLabel = new JLabel("Periode Gaji:");
         periodLabel.setFont(Constants.FONT_BODY);
@@ -79,9 +79,9 @@ public class ImportPanel extends JPanel {
         String currentPeriod = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
         periodField = UIHelper.createStyledTextField("yyyy-MM");
         periodField.setText(currentPeriod);
-        periodField.setPreferredSize(new Dimension(140, 36));
+        periodField.setPreferredSize(new Dimension(140, 40));
 
-        processButton = UIHelper.createStyledButton("Proses & Simpan", Constants.ACCENT);
+        processButton = UIHelper.createStyledButton("Proses & Simpan", Constants.ACCENT_WARN);
         processButton.setEnabled(false);
         processButton.addActionListener(e -> processData());
 
@@ -92,13 +92,13 @@ public class ImportPanel extends JPanel {
         controlCard.add(periodRow);
 
         JPanel topWrapper = new JPanel(new BorderLayout());
-        topWrapper.setBackground(Constants.BG_DARK);
+        topWrapper.setOpaque(false);
         topWrapper.setBorder(new EmptyBorder(0, 0, 16, 0));
         topWrapper.add(controlCard, BorderLayout.CENTER);
 
         // Table
         String[] columns = {"No", "ID Karyawan", "Nama", "Email", "Posisi", "Departemen",
-                "Gaji Pokok", "Hari Hadir", "Hari Absen", "Jam Lembur"};
+                "Gaji Pokok", "Hari Hadir", "Hari Absen", "Jam Lembur", "Shift Malam"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) { return false; }
@@ -114,7 +114,7 @@ public class ImportPanel extends JPanel {
         tableCard.add(scrollPane, BorderLayout.CENTER);
 
         JPanel centerPanel = new JPanel(new BorderLayout());
-        centerPanel.setBackground(Constants.BG_DARK);
+        centerPanel.setOpaque(false);
         centerPanel.add(topWrapper, BorderLayout.NORTH);
         centerPanel.add(tableCard, BorderLayout.CENTER);
 
@@ -160,7 +160,8 @@ public class ImportPanel extends JPanel {
                     UIHelper.formatCurrency(emp.getBaseSalary()),
                     emp.getDaysPresent(),
                     emp.getDaysAbsent(),
-                    emp.getOvertimeHours()
+                    emp.getOvertimeHours(),
+                    emp.isNightShift() ? "Ya" : "Tidak"
             });
         }
     }
@@ -206,7 +207,7 @@ public class ImportPanel extends JPanel {
                     UIHelper.showError(ImportPanel.this, "Error: " + ex.getMessage());
                 } finally {
                     processButton.setEnabled(true);
-                    processButton.setText("⚡ Proses & Simpan");
+                    processButton.setText("Proses & Simpan");
                 }
             }
         };

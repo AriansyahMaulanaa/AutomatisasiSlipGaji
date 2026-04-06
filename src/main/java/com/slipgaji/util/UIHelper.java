@@ -7,6 +7,7 @@ import javax.swing.table.JTableHeader;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.geom.RoundRectangle2D;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
@@ -26,22 +27,51 @@ public class UIHelper {
         return CURRENCY_FORMAT.format(amount);
     }
 
+    // ======================== BUTTONS ========================
+
     public static JButton createStyledButton(String text, Color bgColor) {
         JButton button = new JButton(text) {
+            private float hoverAlpha = 0f;
+
+            {
+                addMouseListener(new MouseAdapter() {
+                    @Override
+                    public void mouseEntered(MouseEvent e) {
+                        hoverAlpha = 0.15f;
+                        repaint();
+                    }
+                    @Override
+                    public void mouseExited(MouseEvent e) {
+                        hoverAlpha = 0f;
+                        repaint();
+                    }
+                });
+            }
+
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                Color bg;
                 if (!isEnabled()) {
-                    g2.setColor(Constants.BORDER_COLOR);
+                    bg = Constants.BORDER_COLOR;
                 } else if (getModel().isPressed()) {
-                    g2.setColor(bgColor.darker());
-                } else if (getModel().isRollover()) {
-                    g2.setColor(bgColor.brighter());
+                    bg = bgColor.darker();
                 } else {
-                    g2.setColor(bgColor);
+                    bg = bgColor;
                 }
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 24, 24);
+                g2.setColor(bg);
+                g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(),
+                        Constants.BUTTON_RADIUS * 2, Constants.BUTTON_RADIUS * 2));
+
+                // Hover overlay
+                if (hoverAlpha > 0 && isEnabled()) {
+                    g2.setColor(new Color(255, 255, 255, (int)(hoverAlpha * 255)));
+                    g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(),
+                            Constants.BUTTON_RADIUS * 2, Constants.BUTTON_RADIUS * 2));
+                }
+
                 g2.dispose();
                 super.paintComponent(g);
             }
@@ -58,78 +88,149 @@ public class UIHelper {
         return button;
     }
 
+    // ======================== SIDEBAR ========================
+
     public static JButton createSidebarButton(String text, String icon) {
-        JButton button = new JButton("  " + icon + "  " + text);
+        JButton button = new JButton("  " + text) {
+            private boolean hovered = false;
+
+            {
+                addMouseListener(new MouseAdapter() {
+                    @Override
+                    public void mouseEntered(MouseEvent e) {
+                        Object active = getClientProperty("sidebar.active");
+                        if (!Boolean.TRUE.equals(active)) {
+                            hovered = true;
+                            repaint();
+                        }
+                    }
+                    @Override
+                    public void mouseExited(MouseEvent e) {
+                        hovered = false;
+                        repaint();
+                    }
+                });
+            }
+
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                int w = getWidth();
+                int h = getHeight();
+                int margin = 8;
+                boolean isActive = Boolean.TRUE.equals(getClientProperty("sidebar.active"));
+
+                if (isActive) {
+                    // Active state: light blue background with left accent
+                    g2.setColor(Constants.SIDEBAR_ACTIVE_BG);
+                    g2.fill(new RoundRectangle2D.Double(margin, 2, w - margin * 2, h - 4, 12, 12));
+                    // Left accent bar
+                    g2.setColor(Constants.PRIMARY);
+                    g2.fill(new RoundRectangle2D.Double(margin, 6, 4, h - 12, 4, 4));
+                } else if (hovered) {
+                    g2.setColor(new Color(243, 244, 246));
+                    g2.fill(new RoundRectangle2D.Double(margin, 2, w - margin * 2, h - 4, 12, 12));
+                }
+
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
         button.setFont(Constants.FONT_BODY);
         button.setForeground(Constants.TEXT_SECONDARY);
         button.setBackground(Constants.SIDEBAR_BG);
         button.setBorderPainted(false);
         button.setFocusPainted(false);
+        button.setContentAreaFilled(false);
+        button.setOpaque(false);
         button.setHorizontalAlignment(SwingConstants.LEFT);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
         button.setBorder(new EmptyBorder(12, 16, 12, 16));
         button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 48));
-
-        button.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                if (!button.isSelected()) {
-                    button.setBackground(Constants.BG_CARD);
-                    button.setForeground(Constants.TEXT_PRIMARY);
-                }
-            }
-            @Override
-            public void mouseExited(MouseEvent e) {
-                if (!button.isSelected()) {
-                    button.setBackground(Constants.SIDEBAR_BG);
-                    button.setForeground(Constants.TEXT_SECONDARY);
-                }
-            }
-        });
         return button;
     }
 
     public static void setSidebarButtonActive(JButton button, boolean active) {
+        // Call the internal setActive method via reflection-safe approach
         if (active) {
-            button.setBackground(Constants.PRIMARY);
-            button.setForeground(Color.WHITE);
+            button.setForeground(Constants.PRIMARY);
+            button.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 13));
         } else {
-            button.setBackground(Constants.SIDEBAR_BG);
             button.setForeground(Constants.TEXT_SECONDARY);
+            button.setFont(Constants.FONT_BODY);
         }
+        // Trigger the custom paint
+        button.putClientProperty("sidebar.active", active);
+        button.repaint();
     }
 
+    // ======================== CARDS ========================
+
     public static JPanel createCard(String title) {
-        JPanel card = new JPanel();
+        JPanel card = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                int w = getWidth();
+                int h = getHeight();
+
+                // Shadow
+                for (int i = 3; i > 0; i--) {
+                    g2.setColor(new Color(0, 0, 0, 8 * (4 - i)));
+                    g2.fill(new RoundRectangle2D.Double(i, i + 1, w - i * 2, h - i * 2 + 1,
+                            Constants.CARD_RADIUS * 2, Constants.CARD_RADIUS * 2));
+                }
+
+                // Card background
+                g2.setColor(Constants.BG_CARD);
+                g2.fill(new RoundRectangle2D.Double(0, 0, w - 1, h - 1,
+                        Constants.CARD_RADIUS * 2, Constants.CARD_RADIUS * 2));
+
+                // Subtle border
+                g2.setColor(Constants.BORDER_COLOR);
+                g2.draw(new RoundRectangle2D.Double(0, 0, w - 1, h - 1,
+                        Constants.CARD_RADIUS * 2, Constants.CARD_RADIUS * 2));
+
+                g2.dispose();
+            }
+        };
         card.setLayout(new BorderLayout());
-        card.setBackground(Constants.BG_CARD);
-        card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Constants.BORDER_COLOR, 1),
-                new EmptyBorder(20, 20, 20, 20)
-        ));
+        card.setOpaque(false);
+        card.setBorder(new EmptyBorder(24, 24, 24, 24));
 
         if (title != null && !title.isEmpty()) {
             JLabel titleLabel = new JLabel(title);
             titleLabel.setFont(Constants.FONT_HEADING);
             titleLabel.setForeground(Constants.TEXT_PRIMARY);
-            titleLabel.setBorder(new EmptyBorder(0, 0, 12, 0));
+            titleLabel.setBorder(new EmptyBorder(0, 0, 16, 0));
             card.add(titleLabel, BorderLayout.NORTH);
         }
         return card;
     }
 
+    // ======================== TEXT FIELDS ========================
+
     public static JTextField createStyledTextField(String placeholder) {
         JTextField field = new JTextField() {
             @Override
             protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getBackground());
+                g2.fill(new RoundRectangle2D.Double(0, 0, getWidth() - 1, getHeight() - 1, 12, 12));
+                g2.dispose();
                 super.paintComponent(g);
                 if (getText().isEmpty() && !hasFocus()) {
-                    Graphics2D g2 = (Graphics2D) g.create();
-                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    g2.setColor(Constants.TEXT_SECONDARY);
-                    g2.setFont(Constants.FONT_BODY);
-                    g2.drawString(placeholder, getInsets().left + 4, getHeight() / 2 + 5);
-                    g2.dispose();
+                    Graphics2D g3 = (Graphics2D) g.create();
+                    g3.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g3.setColor(new Color(156, 163, 175));
+                    g3.setFont(Constants.FONT_BODY);
+                    g3.drawString(placeholder, getInsets().left + 4, getHeight() / 2 + 5);
+                    g3.dispose();
                 }
             }
         };
@@ -137,9 +238,10 @@ public class UIHelper {
         field.setForeground(Constants.TEXT_PRIMARY);
         field.setBackground(Constants.BG_SURFACE);
         field.setCaretColor(Constants.TEXT_PRIMARY);
+        field.setOpaque(false);
         field.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Constants.BORDER_COLOR, 1),
-                new EmptyBorder(8, 12, 8, 12)
+                new EmptyBorder(8, 14, 8, 14)
         ));
         return field;
     }
@@ -148,14 +250,19 @@ public class UIHelper {
         JPasswordField field = new JPasswordField() {
             @Override
             protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getBackground());
+                g2.fill(new RoundRectangle2D.Double(0, 0, getWidth() - 1, getHeight() - 1, 12, 12));
+                g2.dispose();
                 super.paintComponent(g);
                 if (getPassword().length == 0 && !hasFocus()) {
-                    Graphics2D g2 = (Graphics2D) g.create();
-                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    g2.setColor(Constants.TEXT_SECONDARY);
-                    g2.setFont(Constants.FONT_BODY);
-                    g2.drawString(placeholder, getInsets().left + 4, getHeight() / 2 + 5);
-                    g2.dispose();
+                    Graphics2D g3 = (Graphics2D) g.create();
+                    g3.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g3.setColor(new Color(156, 163, 175));
+                    g3.setFont(Constants.FONT_BODY);
+                    g3.drawString(placeholder, getInsets().left + 4, getHeight() / 2 + 5);
+                    g3.dispose();
                 }
             }
         };
@@ -163,38 +270,59 @@ public class UIHelper {
         field.setForeground(Constants.TEXT_PRIMARY);
         field.setBackground(Constants.BG_SURFACE);
         field.setCaretColor(Constants.TEXT_PRIMARY);
+        field.setOpaque(false);
         field.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Constants.BORDER_COLOR, 1),
-                new EmptyBorder(8, 12, 8, 12)
+                new EmptyBorder(8, 14, 8, 14)
         ));
         return field;
     }
+
+    // ======================== TABLES ========================
 
     public static void styleTable(JTable table) {
         table.setFont(Constants.FONT_BODY);
         table.setForeground(Constants.TEXT_PRIMARY);
         table.setBackground(Constants.BG_CARD);
-        table.setGridColor(Constants.BORDER_COLOR);
-        table.setSelectionBackground(Constants.PRIMARY);
-        table.setSelectionForeground(Color.WHITE);
-        table.setRowHeight(36);
+        table.setGridColor(new Color(243, 244, 246));
+        table.setSelectionBackground(new Color(219, 234, 254));
+        table.setSelectionForeground(Constants.TEXT_PRIMARY);
+        table.setRowHeight(40);
         table.setShowHorizontalLines(true);
         table.setShowVerticalLines(false);
-        table.setIntercellSpacing(new Dimension(0, 1));
+        table.setIntercellSpacing(new Dimension(0, 0));
+        table.setFillsViewportHeight(true);
 
+        // Table Header
         JTableHeader header = table.getTableHeader();
-        header.setFont(Constants.FONT_HEADING);
-        header.setForeground(Constants.TEXT_PRIMARY);
+        header.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 12));
+        header.setForeground(Constants.TEXT_SECONDARY);
         header.setBackground(Constants.BG_SURFACE);
-        header.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, Constants.PRIMARY));
-        header.setPreferredSize(new Dimension(header.getWidth(), 40));
+        header.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, Constants.BORDER_COLOR));
+        header.setPreferredSize(new Dimension(header.getWidth(), 44));
 
-        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
-        centerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
-        for (int i = 0; i < table.getColumnCount(); i++) {
-            table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
-        }
+        // Zebra / Alternating Row Colors with center alignment
+        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object value,
+                    boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(t, value, isSelected, hasFocus, row, column);
+                setHorizontalAlignment(SwingConstants.CENTER);
+                setBorder(new EmptyBorder(0, 8, 0, 8));
+                if (!isSelected) {
+                    if (row % 2 == 0) {
+                        c.setBackground(Constants.BG_CARD);
+                    } else {
+                        c.setBackground(Constants.TABLE_ROW_ALT);
+                    }
+                    c.setForeground(Constants.TEXT_PRIMARY);
+                }
+                return c;
+            }
+        });
     }
+
+    // ======================== STAT CARDS ========================
 
     public static JLabel createStatCard(String label, String value, Color accentColor) {
         JLabel card = new JLabel() {
@@ -202,28 +330,48 @@ public class UIHelper {
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                int w = getWidth();
+                int h = getHeight();
+                int r = Constants.CARD_RADIUS * 2;
+
+                // Shadow
+                for (int i = 3; i > 0; i--) {
+                    g2.setColor(new Color(0, 0, 0, 6 * (4 - i)));
+                    g2.fill(new RoundRectangle2D.Double(i, i + 1, w - i * 2, h - i * 2 + 1, r, r));
+                }
+
+                // Background
                 g2.setColor(Constants.BG_CARD);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 24, 24);
+                g2.fill(new RoundRectangle2D.Double(0, 0, w, h, r, r));
+
+                // Accent strip (left side)
+                g2.setClip(new RoundRectangle2D.Double(0, 0, w, h, r, r));
                 g2.setColor(accentColor);
-                g2.fillRoundRect(0, 0, 8, getHeight(), 24, 24);
+                g2.fillRect(0, 0, 5, h);
+                g2.setClip(null);
+
+                // Border
+                g2.setColor(Constants.BORDER_COLOR);
+                g2.draw(new RoundRectangle2D.Double(0, 0, w - 1, h - 1, r, r));
+
                 g2.dispose();
                 super.paintComponent(g);
             }
         };
         card.setText("<html><div style='padding:8px'>"
-                + "<span style='color:#666666;font-size:10px'>" + label + "</span><br>"
-                + "<span style='color:#111111;font-size:20px'><b>" + value + "</b></span>"
+                + "<span style='color:#6B7280;font-size:11px'>" + label + "</span><br>"
+                + "<span style='color:#111827;font-size:22px'><b>" + value + "</b></span>"
                 + "</div></html>");
         card.setFont(Constants.FONT_BODY);
         card.setForeground(Constants.TEXT_PRIMARY);
         card.setOpaque(false);
-        card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Constants.BORDER_COLOR, 1),
-                new EmptyBorder(12, 16, 12, 16)
-        ));
-        card.setPreferredSize(new Dimension(200, 80));
+        card.setBorder(new EmptyBorder(14, 20, 14, 20));
+        card.setPreferredSize(new Dimension(200, 90));
         return card;
     }
+
+    // ======================== DIALOGS ========================
 
     public static void showError(Component parent, String message) {
         JOptionPane.showMessageDialog(parent, message, "Error", JOptionPane.ERROR_MESSAGE);

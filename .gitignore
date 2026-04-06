@@ -1,4 +1,7 @@
 data/
+*.db
+/build/
+dist/
 output/
 target/
 *.log

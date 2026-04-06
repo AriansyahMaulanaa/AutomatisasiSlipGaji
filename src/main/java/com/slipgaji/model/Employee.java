@@ -13,6 +13,7 @@ public class Employee {
     private int daysPresent;
     private int daysAbsent;
     private double overtimeHours;
+    private boolean nightShift;
 
     public Employee() {}
 
@@ -47,6 +48,8 @@ public class Employee {
     public void setDaysAbsent(int daysAbsent) { this.daysAbsent = daysAbsent; }
     public double getOvertimeHours() { return overtimeHours; }
     public void setOvertimeHours(double overtimeHours) { this.overtimeHours = overtimeHours; }
+    public boolean isNightShift() { return nightShift; }
+    public void setNightShift(boolean nightShift) { this.nightShift = nightShift; }
 
     @Override
     public String toString() {

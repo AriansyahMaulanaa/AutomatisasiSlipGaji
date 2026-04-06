@@ -14,7 +14,7 @@ public class SettingsPanel extends JPanel {
     private JTextField smtpHostField, smtpPortField, smtpEmailField;
     private JPasswordField smtpPasswordField;
     private JTextField companyNameField, companyAddressField;
-    private JTextField overtimeRateField, divisorField, transportField, mealField;
+    private JTextField overtimeRateField, divisorField, transportField, mealField, nightShiftRateField;
     private final DatabaseService db;
 
     public SettingsPanel() {
@@ -25,12 +25,12 @@ public class SettingsPanel extends JPanel {
 
     private void initUI() {
         setLayout(new BorderLayout());
-        setBackground(Constants.BG_DARK);
-        setBorder(new EmptyBorder(24, 24, 24, 24));
+        setOpaque(false);
+        setBorder(new EmptyBorder(32, 32, 32, 32));
 
         JPanel header = new JPanel(new BorderLayout());
-        header.setBackground(Constants.BG_DARK);
-        header.setBorder(new EmptyBorder(0, 0, 16, 0));
+        header.setOpaque(false);
+        header.setBorder(new EmptyBorder(0, 0, 20, 0));
         JLabel title = new JLabel("Pengaturan");
         title.setFont(Constants.FONT_TITLE);
         title.setForeground(Constants.TEXT_PRIMARY);
@@ -39,14 +39,14 @@ public class SettingsPanel extends JPanel {
 
         JPanel content = new JPanel();
         content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
-        content.setBackground(Constants.BG_DARK);
+        content.setOpaque(false);
 
         // SMTP Settings
         JPanel smtpCard = UIHelper.createCard("Konfigurasi SMTP Email");
         JPanel smtpForm = new JPanel(new GridBagLayout());
-        smtpForm.setBackground(Constants.BG_CARD);
+        smtpForm.setOpaque(false);
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(6, 8, 6, 8);
+        gbc.insets = new Insets(8, 8, 8, 8);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
         smtpHostField = UIHelper.createStyledTextField("smtp.gmail.com");
@@ -61,7 +61,7 @@ public class SettingsPanel extends JPanel {
 
         gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 2;
         JPanel smtpBtnPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        smtpBtnPanel.setBackground(Constants.BG_CARD);
+        smtpBtnPanel.setOpaque(false);
         JButton testBtn = UIHelper.createStyledButton("Test Koneksi", Constants.ACCENT_WARN);
         testBtn.addActionListener(e -> testSmtp());
         JButton saveSmtpBtn = UIHelper.createStyledButton("Simpan SMTP", Constants.PRIMARY);
@@ -69,15 +69,15 @@ public class SettingsPanel extends JPanel {
         smtpBtnPanel.add(testBtn);
         smtpBtnPanel.add(saveSmtpBtn);
         smtpForm.add(smtpBtnPanel, gbc);
-        
+
         smtpCard.add(smtpForm, BorderLayout.CENTER);
 
         // Company Settings
         JPanel companyCard = UIHelper.createCard("Informasi Perusahaan");
         JPanel companyForm = new JPanel(new GridBagLayout());
-        companyForm.setBackground(Constants.BG_CARD);
+        companyForm.setOpaque(false);
         GridBagConstraints gbc2 = new GridBagConstraints();
-        gbc2.insets = new Insets(6, 8, 6, 8);
+        gbc2.insets = new Insets(8, 8, 8, 8);
         gbc2.fill = GridBagConstraints.HORIZONTAL;
 
         companyNameField = UIHelper.createStyledTextField("PT. Maju Bersama");
@@ -89,47 +89,50 @@ public class SettingsPanel extends JPanel {
         JButton saveCompBtn = UIHelper.createStyledButton("Simpan", Constants.PRIMARY);
         saveCompBtn.addActionListener(e -> saveCompanySettings());
         companyForm.add(saveCompBtn, gbc2);
-        
+
         companyCard.add(companyForm, BorderLayout.CENTER);
 
         // Salary Settings
         JPanel salaryCard = UIHelper.createCard("Parameter Gaji");
         JPanel salaryForm = new JPanel(new GridBagLayout());
-        salaryForm.setBackground(Constants.BG_CARD);
+        salaryForm.setOpaque(false);
         GridBagConstraints gbc3 = new GridBagConstraints();
-        gbc3.insets = new Insets(6, 8, 6, 8);
+        gbc3.insets = new Insets(8, 8, 8, 8);
         gbc3.fill = GridBagConstraints.HORIZONTAL;
 
         overtimeRateField = UIHelper.createStyledTextField("25000");
         divisorField = UIHelper.createStyledTextField("22");
         transportField = UIHelper.createStyledTextField("500000");
         mealField = UIHelper.createStyledTextField("300000");
+        nightShiftRateField = UIHelper.createStyledTextField("50000");
 
         addFormRow(salaryForm, gbc3, 0, "Tarif Lembur/Jam (Rp):", overtimeRateField);
         addFormRow(salaryForm, gbc3, 1, "Hari Kerja/Bulan:", divisorField);
         addFormRow(salaryForm, gbc3, 2, "Tunj. Transport (Rp):", transportField);
         addFormRow(salaryForm, gbc3, 3, "Tunj. Makan (Rp):", mealField);
+        addFormRow(salaryForm, gbc3, 4, "Insentif Shift Malam (Rp):", nightShiftRateField);
 
-        gbc3.gridx = 0; gbc3.gridy = 4; gbc3.gridwidth = 2;
+        gbc3.gridx = 0; gbc3.gridy = 5; gbc3.gridwidth = 2;
         JButton saveSalaryBtn = UIHelper.createStyledButton("Simpan Parameter", Constants.PRIMARY);
         saveSalaryBtn.addActionListener(e -> saveSalarySettings());
         salaryForm.add(saveSalaryBtn, gbc3);
-        
+
         salaryCard.add(salaryForm, BorderLayout.CENTER);
 
         content.add(smtpCard);
-        content.add(Box.createVerticalStrut(16));
+        content.add(Box.createVerticalStrut(20));
         content.add(companyCard);
-        content.add(Box.createVerticalStrut(16));
+        content.add(Box.createVerticalStrut(20));
         content.add(salaryCard);
 
         JPanel wrapper = new JPanel(new BorderLayout());
-        wrapper.setBackground(Constants.BG_DARK);
+        wrapper.setOpaque(false);
         wrapper.add(content, BorderLayout.NORTH);
 
         JScrollPane scrollPane = new JScrollPane(wrapper);
         scrollPane.setBorder(null);
-        scrollPane.getViewport().setBackground(Constants.BG_DARK);
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
         add(scrollPane, BorderLayout.CENTER);
     }
@@ -141,12 +144,12 @@ public class SettingsPanel extends JPanel {
         JLabel lbl = new JLabel(label);
         lbl.setFont(Constants.FONT_BODY);
         lbl.setForeground(Constants.TEXT_SECONDARY);
-        lbl.setPreferredSize(new Dimension(170, 24)); // Fixed label width for neatness
+        lbl.setPreferredSize(new Dimension(190, 28));
         panel.add(lbl, gbc);
-        
+
         gbc.gridx = 1; gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        field.setPreferredSize(new Dimension(300, 36));
+        field.setPreferredSize(new Dimension(300, 40));
         panel.add(field, gbc);
     }
 
@@ -161,6 +164,7 @@ public class SettingsPanel extends JPanel {
         divisorField.setText(db.getSetting("daily_rate_divisor"));
         transportField.setText(db.getSetting("transport_allowance"));
         mealField.setText(db.getSetting("meal_allowance"));
+        nightShiftRateField.setText(db.getSetting("night_shift_rate"));
     }
 
     private void saveSmtpSettings() {
@@ -182,6 +186,7 @@ public class SettingsPanel extends JPanel {
         db.saveSetting("daily_rate_divisor", divisorField.getText().trim());
         db.saveSetting("transport_allowance", transportField.getText().trim());
         db.saveSetting("meal_allowance", mealField.getText().trim());
+        db.saveSetting("night_shift_rate", nightShiftRateField.getText().trim());
         UIHelper.showSuccess(this, "Parameter gaji berhasil disimpan.");
     }
 

@@ -24,6 +24,7 @@ public class ExcelService {
      * H: Days Present
      * I: Days Absent
      * J: Overtime Hours
+     * K: Shift Malam (Y/Ya/1 = true, optional column)
      */
     public List<Employee> readExcelFile(File file) throws IOException {
         List<Employee> employees = new ArrayList<>();
@@ -54,6 +55,10 @@ public class ExcelService {
                     emp.setDaysAbsent((int) getCellNumericValue(row.getCell(8)));   // I
                     emp.setOvertimeHours(getCellNumericValue(row.getCell(9)));      // J
 
+                    // K: Shift Malam (optional column)
+                    Cell nightShiftCell = row.getCell(10);
+                    emp.setNightShift(isNightShiftValue(nightShiftCell));
+
                     // Validate required fields
                     if (emp.getEmployeeId().isEmpty() || emp.getName().isEmpty() || emp.getEmail().isEmpty()) {
                         System.err.println("Skipping row " + (i + 1) + ": Missing required fields");
@@ -68,6 +73,17 @@ public class ExcelService {
         }
 
         return employees;
+    }
+
+    /**
+     * Check if the cell value indicates night shift.
+     * Accepts: Y, Ya, YES, 1, true (case-insensitive)
+     */
+    private boolean isNightShiftValue(Cell cell) {
+        if (cell == null) return false;
+        String val = getCellStringValue(cell).trim().toLowerCase();
+        return val.equals("y") || val.equals("ya") || val.equals("yes")
+                || val.equals("1") || val.equals("true");
     }
 
     private String getCellStringValue(Cell cell) {

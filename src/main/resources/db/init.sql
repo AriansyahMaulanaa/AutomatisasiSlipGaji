@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS payslips (
     deductions REAL DEFAULT 0,
     allowances REAL DEFAULT 0,
     net_salary REAL DEFAULT 0,
+    night_shift_incentive REAL DEFAULT 0,
+    is_night_shift INTEGER DEFAULT 0,
     pdf_path TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (employee_id) REFERENCES employees(id)
@@ -66,4 +68,5 @@ INSERT OR IGNORE INTO settings (key, value) VALUES
     ('overtime_rate_per_hour', '25000'),
     ('daily_rate_divisor', '22'),
     ('transport_allowance', '500000'),
-    ('meal_allowance', '300000');
+    ('meal_allowance', '300000'),
+    ('night_shift_rate', '50000');

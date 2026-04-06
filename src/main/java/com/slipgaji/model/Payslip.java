@@ -12,6 +12,8 @@ public class Payslip {
     private double deductions;
     private double allowances;
     private double netSalary;
+    private double nightShiftIncentive;
+    private boolean nightShift;
     private String pdfPath;
     private String createdAt;
 
@@ -47,6 +49,10 @@ public class Payslip {
     public void setAllowances(double allowances) { this.allowances = allowances; }
     public double getNetSalary() { return netSalary; }
     public void setNetSalary(double netSalary) { this.netSalary = netSalary; }
+    public double getNightShiftIncentive() { return nightShiftIncentive; }
+    public void setNightShiftIncentive(double nightShiftIncentive) { this.nightShiftIncentive = nightShiftIncentive; }
+    public boolean isNightShift() { return nightShift; }
+    public void setNightShift(boolean nightShift) { this.nightShift = nightShift; }
     public String getPdfPath() { return pdfPath; }
     public void setPdfPath(String pdfPath) { this.pdfPath = pdfPath; }
     public String getCreatedAt() { return createdAt; }

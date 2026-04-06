@@ -31,15 +31,16 @@ public class ImportController {
         int divisor = (int) db.getSettingDouble("daily_rate_divisor", 22);
         double transport = db.getSettingDouble("transport_allowance", 500000);
         double meal = db.getSettingDouble("meal_allowance", 300000);
+        double nightShiftRate = db.getSettingDouble("night_shift_rate", 50000);
 
-        SalaryCalculator calculator = new SalaryCalculator(overtimeRate, divisor, transport, meal);
+        SalaryCalculator calculator = new SalaryCalculator(overtimeRate, divisor, transport, meal, nightShiftRate);
 
         for (Employee emp : employees) {
             // Save/update employee
             int empDbId = db.saveOrUpdateEmployee(emp);
             emp.setId(empDbId);
 
-            // Calculate salary
+            // Calculate salary (includes night shift if applicable)
             Payslip payslip = calculator.calculate(emp, period);
             payslip.setEmployeeId(empDbId);
 
