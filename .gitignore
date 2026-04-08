@@ -1,5 +1,6 @@
 data/
 output/
 target/
+.vscode/
 *.log
 config.properties
