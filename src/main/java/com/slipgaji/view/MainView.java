@@ -51,6 +51,7 @@ public class MainView extends JFrame {
         contentWrapper.setBackground(Constants.BG_DARK);
         contentWrapper.setBorder(new EmptyBorder(16, 8, 16, 16));
 
+<<<<<<< HEAD
         cardLayout = new CardLayout();
         contentPanel = new JPanel(cardLayout) {
             @Override
@@ -78,6 +79,8 @@ public class MainView extends JFrame {
         contentPanel.setOpaque(false);
         contentPanel.setBorder(new EmptyBorder(4, 4, 4, 4));
 
+=======
+>>>>>>> 0274c08
         dashboardPanel = new DashboardPanel(this);
         importPanel = new ImportPanel(this);
         payslipPanel = new PayslipPanel();

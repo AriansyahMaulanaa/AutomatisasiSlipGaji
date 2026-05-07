@@ -49,12 +49,29 @@ public class LoginView extends JFrame {
     private void initUI() {
         setTitle(Constants.APP_NAME + " - Login");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+<<<<<<< HEAD
+        setSize(1200, 750);
+        setMinimumSize(new Dimension(960, 640));
+=======
+<<<<<<< HEAD
+        setSize(480, 620);
+>>>>>>> 0274c08
+        setLocationRelativeTo(null);
+        setResizable(true);
+        setUndecorated(true); // Remove title bar for rounded corners
+
+<<<<<<< HEAD
+=======
+        // Main panel with gradient background
+        JPanel mainPanel = new JPanel() {
+=======
         setSize(1200, 750);
         setMinimumSize(new Dimension(960, 640));
         setLocationRelativeTo(null);
         setResizable(true);
         setUndecorated(true); // Remove title bar for rounded corners
 
+>>>>>>> 0274c08
         // Apply rounded shape to the window
         addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override
@@ -82,11 +99,16 @@ public class LoginView extends JFrame {
 
         // ========== LEFT PANEL (Branding) ==========
         JPanel leftPanel = new JPanel() {
+<<<<<<< HEAD
+=======
+>>>>>>> e7da53e (update fitur dan db)
+>>>>>>> 0274c08
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+<<<<<<< HEAD
                 g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
                 int w = getWidth();
@@ -245,6 +267,276 @@ public class LoginView extends JFrame {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(Color.WHITE);
+=======
+<<<<<<< HEAD
+                GradientPaint gp = new GradientPaint(0, 0, Constants.BG_DARK,
+                        getWidth(), getHeight(), new Color(30, 27, 75));
+                g2.setPaint(gp);
+>>>>>>> 0274c08
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.dispose();
+            }
+        };
+        rightPanel.setOpaque(false);
+        rightPanel.setLayout(new GridBagLayout());
+
+        JPanel formWrapper = new JPanel();
+        formWrapper.setLayout(new BoxLayout(formWrapper, BoxLayout.Y_AXIS));
+        formWrapper.setOpaque(false);
+        formWrapper.setBorder(new EmptyBorder(40, 56, 40, 56));
+        formWrapper.setMaximumSize(new Dimension(480, 700));
+
+        // Close button (top-right since we removed title bar)
+        JPanel topBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        topBar.setOpaque(false);
+        topBar.setAlignmentX(Component.LEFT_ALIGNMENT);
+        topBar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
+
+        JButton minimizeBtn = createWindowButton("—", false);
+        minimizeBtn.addActionListener(e -> setState(Frame.ICONIFIED));
+        JButton closeBtn = createWindowButton("✕", true);
+        closeBtn.addActionListener(e -> System.exit(0));
+        topBar.add(minimizeBtn);
+        topBar.add(Box.createHorizontalStrut(6));
+        topBar.add(closeBtn);
+
+        // Welcome header
+        JLabel welcomeLabel = new JLabel("Selamat Datang!");
+        welcomeLabel.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 30));
+        welcomeLabel.setForeground(Constants.TEXT_PRIMARY);
+        welcomeLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel welcomeSub = new JLabel("Masuk ke akun Anda untuk melanjutkan");
+        welcomeSub.setFont(new Font(Constants.FONT_FAMILY, Font.PLAIN, 15));
+        welcomeSub.setForeground(Constants.TEXT_SECONDARY);
+        welcomeSub.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // Database status indicator (blue badge)
+        JLabel dbStatusLabel = new JLabel("● MariaDB Connected") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+<<<<<<< HEAD
+                g2.setColor(LIGHT_BLUE_BG);
+                g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), 20, 20));
+=======
+                g2.setColor(Constants.BG_CARD);
+                g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), 24, 24));
+                g2.setColor(Constants.BORDER_COLOR);
+                g2.draw(new RoundRectangle2D.Double(0, 0, getWidth() - 1, getHeight() - 1, 24, 24));
+                g2.dispose();
+            }
+        };
+        card.setOpaque(false);
+        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        card.setBorder(new EmptyBorder(40, 40, 40, 40));
+        card.setPreferredSize(new Dimension(380, 480));
+=======
+                g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+
+                int w = getWidth();
+                int h = getHeight();
+
+                // Background gradient (Soft Blue diagonal)
+                GradientPaint bgGrad = new GradientPaint(
+                        0, 0, GRADIENT_START,
+                        w, h, GRADIENT_END
+                );
+                g2.setPaint(bgGrad);
+                // Rounded left corners
+                g2.fill(new RoundRectangle2D.Double(0, 0, w + 20, h, 28, 28));
+
+                // Animated floating circles (light blue tones)
+                drawFloatingCircle(g2, w * 0.15, h * 0.2, 120, 18);
+                drawFloatingCircle(g2, w * 0.75, h * 0.15, 80, 12);
+                drawFloatingCircle(g2, w * 0.6, h * 0.7, 100, 15);
+                drawFloatingCircle(g2, w * 0.25, h * 0.8, 60, 10);
+                drawFloatingCircle(g2, w * 0.85, h * 0.5, 70, 8);
+                drawFloatingCircle(g2, w * 0.4, h * 0.45, 50, 20);
+
+                // Large decorative ring (top right)
+                g2.setColor(new Color(255, 255, 255, 8));
+                g2.setStroke(new BasicStroke(3));
+                g2.draw(new Ellipse2D.Double(w * 0.5, -80, 300, 300));
+                g2.draw(new Ellipse2D.Double(w * 0.55, -60, 250, 250));
+
+                // Bottom-left ring
+                g2.draw(new Ellipse2D.Double(-80, h * 0.6, 250, 250));
+
+                // Wave at bottom
+                drawWave(g2, w, h);
+
+                g2.dispose();
+            }
+
+            private void drawFloatingCircle(Graphics2D g2, double cx, double cy, int size, int alphaBase) {
+                double offsetY = Math.sin(animOffset + cx * 0.01) * 12;
+                double offsetX = Math.cos(animOffset + cy * 0.01) * 8;
+                g2.setColor(new Color(255, 255, 255, alphaBase));
+                g2.fill(new Ellipse2D.Double(cx + offsetX - size / 2.0, cy + offsetY - size / 2.0, size, size));
+            }
+>>>>>>> e7da53e (update fitur dan db)
+
+            private void drawWave(Graphics2D g2, int w, int h) {
+                g2.setColor(new Color(255, 255, 255, 10));
+                int waveH = 60;
+                int baseY = h - waveH;
+                java.awt.geom.GeneralPath wave = new java.awt.geom.GeneralPath();
+                wave.moveTo(0, h);
+                wave.lineTo(0, baseY + 20);
+                for (int x = 0; x <= w; x += 4) {
+                    double y = baseY + Math.sin((x + animOffset * 50) * 0.02) * 15
+                            + Math.sin((x + animOffset * 30) * 0.01) * 10;
+                    wave.lineTo(x, y);
+                }
+                wave.lineTo(w, h);
+                wave.closePath();
+                g2.fill(wave);
+            }
+        };
+        leftPanel.setLayout(new GridBagLayout());
+        leftPanel.setOpaque(false);
+
+        // Left panel content
+        JPanel leftContent = new JPanel();
+        leftContent.setLayout(new BoxLayout(leftContent, BoxLayout.Y_AXIS));
+        leftContent.setOpaque(false);
+        leftContent.setBorder(new EmptyBorder(40, 50, 40, 50));
+
+        // Large Logo
+        JLabel logoLabel = new JLabel("") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+<<<<<<< HEAD
+                g2.setColor(Constants.PRIMARY);
+                g2.fillOval(0, 0, 64, 64);
+=======
+
+                // Glassy circle background
+                g2.setColor(new Color(255, 255, 255, 35));
+                g2.fillOval(0, 0, 88, 88);
+                g2.setColor(new Color(255, 255, 255, 20));
+                g2.setStroke(new BasicStroke(2));
+                g2.drawOval(0, 0, 88, 88);
+
+                // Icon
+                g2.setColor(Color.WHITE);
+                g2.setFont(new Font("Segoe UI", Font.BOLD, 38));
+                FontMetrics fm = g2.getFontMetrics();
+                String icon = "₪";
+                int x = (88 - fm.stringWidth(icon)) / 2;
+                int y = (88 + fm.getAscent() - fm.getDescent()) / 2;
+                g2.drawString(icon, x, y);
+
+>>>>>>> e7da53e (update fitur dan db)
+>>>>>>> 0274c08
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+<<<<<<< HEAD
+        dbStatusLabel.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 11));
+        dbStatusLabel.setForeground(GRADIENT_START);
+        dbStatusLabel.setOpaque(false);
+        dbStatusLabel.setBorder(new EmptyBorder(4, 14, 4, 14));
+        dbStatusLabel.setMaximumSize(new Dimension(180, 28));
+        dbStatusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+=======
+<<<<<<< HEAD
+        iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        iconLabel.setPreferredSize(new Dimension(64, 64));
+        iconLabel.setMaximumSize(new Dimension(64, 64));
+        iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        // Title
+        JLabel titleLabel = new JLabel(Constants.APP_NAME);
+        titleLabel.setFont(Constants.FONT_TITLE);
+        titleLabel.setForeground(Constants.TEXT_PRIMARY);
+        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel subtitleLabel = new JLabel("Sistem Otomatisasi Slip Gaji");
+        subtitleLabel.setFont(Constants.FONT_SMALL);
+        subtitleLabel.setForeground(Constants.TEXT_SECONDARY);
+        subtitleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+>>>>>>> 0274c08
+
+        // Username
+        JLabel userLabel = new JLabel("Username");
+        userLabel.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 13));
+        userLabel.setForeground(Constants.TEXT_PRIMARY);
+        userLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+<<<<<<< HEAD
+        usernameField = createLargeTextField("Masukkan username anda");
+=======
+        usernameField = UIHelper.createStyledTextField("Masukkan username");
+        usernameField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
+=======
+        logoLabel.setPreferredSize(new Dimension(88, 88));
+        logoLabel.setMaximumSize(new Dimension(88, 88));
+        logoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // App Name (large)
+        JLabel appNameLabel = new JLabel(Constants.APP_NAME);
+        appNameLabel.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 38));
+        appNameLabel.setForeground(Color.WHITE);
+        appNameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // Tagline
+        JLabel tagline = new JLabel("Sistem Otomatisasi Slip Gaji Karyawan");
+        tagline.setFont(new Font(Constants.FONT_FAMILY, Font.PLAIN, 16));
+        tagline.setForeground(new Color(191, 219, 254)); // Blue-200
+        tagline.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // Divider line
+        JPanel divider = new JPanel();
+        divider.setMaximumSize(new Dimension(60, 3));
+        divider.setPreferredSize(new Dimension(60, 3));
+        divider.setBackground(new Color(255, 255, 255, 80));
+        divider.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // Feature list
+        JLabel feat1 = createFeatureLabel("✦  Import data dari Excel otomatis");
+        JLabel feat2 = createFeatureLabel("✦  Generate slip gaji PDF profesional");
+        JLabel feat3 = createFeatureLabel("✦  Kirim slip via email secara massal");
+        JLabel feat4 = createFeatureLabel("✦  Database MariaDB terintegrasi");
+
+        // Company info at bottom
+        JLabel companyLabel = new JLabel(Constants.COMPANY_NAME);
+        companyLabel.setFont(new Font(Constants.FONT_FAMILY, Font.PLAIN, 12));
+        companyLabel.setForeground(new Color(147, 197, 253)); // Blue-300
+        companyLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        leftContent.add(logoLabel);
+        leftContent.add(Box.createVerticalStrut(28));
+        leftContent.add(appNameLabel);
+        leftContent.add(Box.createVerticalStrut(8));
+        leftContent.add(tagline);
+        leftContent.add(Box.createVerticalStrut(24));
+        leftContent.add(divider);
+        leftContent.add(Box.createVerticalStrut(24));
+        leftContent.add(feat1);
+        leftContent.add(Box.createVerticalStrut(10));
+        leftContent.add(feat2);
+        leftContent.add(Box.createVerticalStrut(10));
+        leftContent.add(feat3);
+        leftContent.add(Box.createVerticalStrut(10));
+        leftContent.add(feat4);
+        leftContent.add(Box.createVerticalGlue());
+        leftContent.add(companyLabel);
+
+        leftPanel.add(leftContent);
+
+        // ========== RIGHT PANEL (Login Form) ==========
+        JPanel rightPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Color.WHITE);
                 g2.fillRect(0, 0, getWidth(), getHeight());
                 g2.dispose();
             }
@@ -309,15 +601,34 @@ public class LoginView extends JFrame {
         userLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         usernameField = createLargeTextField("Masukkan username anda");
+>>>>>>> e7da53e (update fitur dan db)
+>>>>>>> 0274c08
         usernameField.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Password
         JLabel passLabel = new JLabel("Password");
+<<<<<<< HEAD
         passLabel.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 13));
         passLabel.setForeground(Constants.TEXT_PRIMARY);
         passLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         passwordField = createLargePasswordField("Masukkan password anda");
+=======
+<<<<<<< HEAD
+        passLabel.setFont(Constants.FONT_BODY);
+        passLabel.setForeground(Constants.TEXT_SECONDARY);
+        passLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        passwordField = UIHelper.createStyledPasswordField("Masukkan password");
+        passwordField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
+=======
+        passLabel.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 13));
+        passLabel.setForeground(Constants.TEXT_PRIMARY);
+        passLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        passwordField = createLargePasswordField("Masukkan password anda");
+>>>>>>> e7da53e (update fitur dan db)
+>>>>>>> 0274c08
         passwordField.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Error label
@@ -326,6 +637,91 @@ public class LoginView extends JFrame {
         errorLabel.setForeground(Constants.ACCENT_DANGER);
         errorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
+<<<<<<< HEAD
+        // Login button (blue gradient with rounded corners)
+        loginButton = new JButton("Masuk ke Dashboard") {
+            private float hoverAlpha = 0f;
+
+            {
+                addMouseListener(new java.awt.event.MouseAdapter() {
+                    @Override
+                    public void mouseEntered(java.awt.event.MouseEvent e) {
+                        hoverAlpha = 0.15f;
+                        repaint();
+                    }
+                    @Override
+                    public void mouseExited(java.awt.event.MouseEvent e) {
+                        hoverAlpha = 0f;
+                        repaint();
+                    }
+                });
+            }
+
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                int w = getWidth();
+                int h = getHeight();
+                int arc = 16;
+
+                // Shadow
+                if (isEnabled()) {
+                    g2.setColor(new Color(37, 99, 235, 40));
+                    g2.fill(new RoundRectangle2D.Double(3, 4, w - 6, h - 2, arc, arc));
+                }
+
+                // Button fill
+                if (!isEnabled()) {
+                    g2.setColor(Constants.BORDER_COLOR);
+                } else {
+                    GradientPaint gp = new GradientPaint(0, 0, GRADIENT_START,
+                            w, 0, GRADIENT_END);
+                    g2.setPaint(gp);
+                }
+                g2.fill(new RoundRectangle2D.Double(0, 0, w, h - 2, arc, arc));
+
+                // Hover overlay
+                if (hoverAlpha > 0 && isEnabled()) {
+                    g2.setColor(new Color(255, 255, 255, (int)(hoverAlpha * 255)));
+                    g2.fill(new RoundRectangle2D.Double(0, 0, w, h - 2, arc, arc));
+                }
+
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        loginButton.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 15));
+        loginButton.setForeground(Color.WHITE);
+        loginButton.setBorderPainted(false);
+        loginButton.setContentAreaFilled(false);
+        loginButton.setFocusPainted(false);
+        loginButton.setOpaque(false);
+        loginButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        loginButton.setBorder(new EmptyBorder(16, 20, 16, 20));
+        loginButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 54));
+=======
+<<<<<<< HEAD
+        // Login button
+        loginButton = UIHelper.createStyledButton("Masuk", Constants.PRIMARY);
+        loginButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
+>>>>>>> 0274c08
+        loginButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        loginButton.addActionListener(e -> doLogin());
+
+        // Access info
+        JLabel infoLabel = new JLabel("<html><span style='color:#9CA3AF;font-size:11px'>" +
+                "🔒 Akses eksklusif untuk General Manager / Admin</span></html>");
+        infoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // Version
+        JLabel versionLabel = new JLabel("v" + Constants.APP_VERSION + " • Powered by MariaDB");
+        versionLabel.setFont(new Font(Constants.FONT_FAMILY, Font.PLAIN, 11));
+        versionLabel.setForeground(new Color(209, 213, 219));
+        versionLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+=======
         // Login button (blue gradient with rounded corners)
         loginButton = new JButton("Masuk ke Dashboard") {
             private float hoverAlpha = 0f;
@@ -403,6 +799,7 @@ public class LoginView extends JFrame {
         versionLabel.setForeground(new Color(209, 213, 219));
         versionLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
+>>>>>>> e7da53e (update fitur dan db)
         // Enter key listener
         KeyAdapter enterKey = new KeyAdapter() {
             @Override
@@ -413,9 +810,39 @@ public class LoginView extends JFrame {
         usernameField.addKeyListener(enterKey);
         passwordField.addKeyListener(enterKey);
 
+<<<<<<< HEAD
         // Enable window dragging (since title bar is removed)
         enableDragging(mainPanel);
 
+=======
+<<<<<<< HEAD
+        // Assemble card
+        card.add(iconLabel);
+        card.add(Box.createVerticalStrut(16));
+        card.add(titleLabel);
+        card.add(Box.createVerticalStrut(4));
+        card.add(subtitleLabel);
+        card.add(Box.createVerticalStrut(32));
+        card.add(userLabel);
+        card.add(Box.createVerticalStrut(6));
+        card.add(usernameField);
+        card.add(Box.createVerticalStrut(16));
+        card.add(passLabel);
+        card.add(Box.createVerticalStrut(6));
+        card.add(passwordField);
+        card.add(Box.createVerticalStrut(8));
+        card.add(errorLabel);
+        card.add(Box.createVerticalStrut(12));
+        card.add(loginButton);
+        card.add(Box.createVerticalStrut(16));
+        card.add(infoLabel);
+
+        mainPanel.add(card);
+=======
+        // Enable window dragging (since title bar is removed)
+        enableDragging(mainPanel);
+
+>>>>>>> 0274c08
         // Assemble form
         formWrapper.add(topBar);
         formWrapper.add(Box.createVerticalStrut(12));
@@ -627,6 +1054,10 @@ public class LoginView extends JFrame {
         });
 
         return field;
+<<<<<<< HEAD
+=======
+>>>>>>> e7da53e (update fitur dan db)
+>>>>>>> 0274c08
     }
 
     private void doLogin() {

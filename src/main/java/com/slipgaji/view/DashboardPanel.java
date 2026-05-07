@@ -74,6 +74,15 @@ public class DashboardPanel extends JPanel {
                 + "<li><b>Kirim Email</b> — Mengoperasikan bulk send/batch kirim email massal</li>"
                 + "<li><b>Histori</b> — Cek rekam status pengiriman email</li>"
                 + "</ol>"
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+                + "<p style='color:#777777; font-size:11px; margin-top:8px;'>"
+                + "💡 <i>Format Excel: Employee ID | Nama | Email | Posisi | Departemen | Gaji Pokok | Hari Hadir | Hari Absen | Jam Lembur</i>"
+                + "</p>"
+=======
+>>>>>>> e7da53e (update fitur dan db)
+>>>>>>> 0274c08
                 + "</div></html>");
         infoText.setFont(Constants.FONT_BODY);
         infoCard.add(infoText, BorderLayout.CENTER);

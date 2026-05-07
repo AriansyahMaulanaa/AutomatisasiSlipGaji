@@ -4,5 +4,6 @@ data/
 dist/
 output/
 target/
+.vscode/
 *.log
 config.properties

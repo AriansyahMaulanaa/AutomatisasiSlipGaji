@@ -79,6 +79,13 @@ public class DatabaseService {
         }
     }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+    public Connection getConnection() {
+        return connection;
+=======
+>>>>>>> 0274c08
     /**
      * Run schema migrations for existing databases that don't have new columns.
      */
@@ -114,6 +121,10 @@ public class DatabaseService {
 
     public Connection getConnection() throws SQLException {
         return dataSource.getConnection();
+<<<<<<< HEAD
+=======
+>>>>>>> e7da53e (update fitur dan db)
+>>>>>>> 0274c08
     }
 
     // ================= USER OPERATIONS =================
@@ -225,9 +236,20 @@ public class DatabaseService {
             if (rs.next()) {
                 int id = rs.getInt("id");
                 String update = "UPDATE payslips SET days_present=?, days_absent=?, overtime_hours=?, " +
+<<<<<<< HEAD
                         "base_salary=?, overtime_pay=?, deductions=?, allowances=?, net_salary=?, " +
                         "night_shift_incentive=?, is_night_shift=?, pdf_path=? WHERE id=?";
                 try (PreparedStatement ups = conn.prepareStatement(update)) {
+=======
+<<<<<<< HEAD
+                        "base_salary=?, overtime_pay=?, deductions=?, allowances=?, net_salary=?, pdf_path=? WHERE id=?";
+                try (PreparedStatement ups = connection.prepareStatement(update)) {
+=======
+                        "base_salary=?, overtime_pay=?, deductions=?, allowances=?, net_salary=?, " +
+                        "night_shift_incentive=?, is_night_shift=?, pdf_path=? WHERE id=?";
+                try (PreparedStatement ups = conn.prepareStatement(update)) {
+>>>>>>> e7da53e (update fitur dan db)
+>>>>>>> 0274c08
                     ups.setInt(1, payslip.getDaysPresent());
                     ups.setInt(2, payslip.getDaysAbsent());
                     ups.setDouble(3, payslip.getOvertimeHours());
@@ -247,10 +269,21 @@ public class DatabaseService {
         } catch (SQLException e) { e.printStackTrace(); }
 
         String insert = "INSERT INTO payslips (employee_id, period, days_present, days_absent, overtime_hours, " +
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+                "base_salary, overtime_pay, deductions, allowances, net_salary, pdf_path) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
+        try (PreparedStatement ps = connection.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
+=======
+>>>>>>> 0274c08
                 "base_salary, overtime_pay, deductions, allowances, net_salary, night_shift_incentive, is_night_shift, pdf_path) " +
                 "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
+<<<<<<< HEAD
+=======
+>>>>>>> e7da53e (update fitur dan db)
+>>>>>>> 0274c08
             ps.setInt(1, payslip.getEmployeeId());
             ps.setString(2, payslip.getPeriod());
             ps.setInt(3, payslip.getDaysPresent());
@@ -308,6 +341,11 @@ public class DatabaseService {
         return periods;
     }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> 0274c08
     public List<PeriodSummary> getPayslipPeriodSummaries() {
         List<PeriodSummary> summaries = new ArrayList<>();
         String sql = "SELECT p.period, COUNT(p.id) as slip_count, SUM(p.net_salary) as total_salary, " +
@@ -345,6 +383,10 @@ public class DatabaseService {
         return summaries;
     }
 
+<<<<<<< HEAD
+=======
+>>>>>>> e7da53e (update fitur dan db)
+>>>>>>> 0274c08
     public Payslip getPayslipById(int id) {
         String sql = "SELECT p.*, e.name as emp_name, e.email as emp_email, e.employee_id as emp_code, " +
                 "e.position, e.department FROM payslips p " +

@@ -18,6 +18,22 @@ CREATE TABLE IF NOT EXISTS employees (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS payslips (
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    employee_id INTEGER NOT NULL,
+    period TEXT NOT NULL,
+    days_present INTEGER DEFAULT 0,
+    days_absent INTEGER DEFAULT 0,
+    overtime_hours REAL DEFAULT 0,
+    base_salary REAL DEFAULT 0,
+    overtime_pay REAL DEFAULT 0,
+    deductions REAL DEFAULT 0,
+    allowances REAL DEFAULT 0,
+    net_salary REAL DEFAULT 0,
+=======
+>>>>>>> 0274c08
     id INT AUTO_INCREMENT PRIMARY KEY,
     employee_id INT NOT NULL,
     period VARCHAR(20) NOT NULL,
@@ -31,6 +47,10 @@ CREATE TABLE IF NOT EXISTS payslips (
     net_salary DOUBLE DEFAULT 0,
     night_shift_incentive DOUBLE DEFAULT 0,
     is_night_shift TINYINT DEFAULT 0,
+<<<<<<< HEAD
+=======
+>>>>>>> e7da53e (update fitur dan db)
+>>>>>>> 0274c08
     pdf_path TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (employee_id) REFERENCES employees(id)

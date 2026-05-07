@@ -6,13 +6,24 @@ import java.io.File;
 public class Constants {
     // App Info
     public static final String APP_NAME = "SlipGaji Pro";
+<<<<<<< HEAD
     public static final String APP_VERSION = "1.1.0";
     public static final String COMPANY_NAME = "CV. Mandiri Sukses Pratama";
+=======
+<<<<<<< HEAD
+    public static final String APP_VERSION = "1.0.0";
+    public static final String COMPANY_NAME = "PT. Maju Bersama Sejahtera";
+=======
+    public static final String APP_VERSION = "1.1.0";
+    public static final String COMPANY_NAME = "CV. Mandiri Sukses Pratama";
+>>>>>>> e7da53e (update fitur dan db)
+>>>>>>> 0274c08
 
     // Paths
     public static final String APP_DIR = System.getProperty("user.dir");
     public static final String PDF_DIR = APP_DIR + File.separator + "output" + File.separator + "pdf";
 
+<<<<<<< HEAD
     // Database MariaDB
     public static final String DB_HOST = "localhost";
     public static final int DB_PORT = 3306;
@@ -20,6 +31,35 @@ public class Constants {
     public static final String DB_USER = "root";
     public static final String DB_PASS = "[REDACTED]";
 
+=======
+<<<<<<< HEAD
+    // Colors - Modern Light Theme (macOS style)
+    public static final Color PRIMARY = new Color(0, 122, 255);       // macOS System Blue
+    public static final Color PRIMARY_DARK = new Color(0, 88, 208);
+    public static final Color PRIMARY_LIGHT = new Color(106, 175, 255);
+    public static final Color ACCENT = new Color(52, 199, 89);       // macOS Green
+    public static final Color ACCENT_WARN = new Color(255, 149, 0);  // macOS Orange
+    public static final Color ACCENT_DANGER = new Color(255, 59, 48); // macOS Red
+    public static final Color BG_DARK = new Color(245, 245, 247);     // macOS Gray Background
+    public static final Color BG_CARD = new Color(255, 255, 255);     // White Card
+    public static final Color BG_SURFACE = new Color(235, 235, 240);  // Light Surface
+    public static final Color TEXT_PRIMARY = new Color(0, 0, 0);      // Black Text
+    public static final Color TEXT_SECONDARY = new Color(100, 100, 105); // Gray Text
+    public static final Color BORDER_COLOR = new Color(220, 220, 225);   // Light Border
+    public static final Color SIDEBAR_BG = new Color(235, 235, 240);  // Sidebar Light
+    public static final Color SUCCESS_BG = new Color(228, 248, 232);
+    public static final Color FAILED_BG = new Color(255, 235, 235);
+
+    // Fonts
+=======
+    // Database MariaDB
+    public static final String DB_HOST = "localhost";
+    public static final int DB_PORT = 3306;
+    public static final String DB_NAME = "slipgaji_db";
+    public static final String DB_USER = "root";
+    public static final String DB_PASS = "[REDACTED]";
+
+>>>>>>> 0274c08
     // Colors - Modern Light Theme (Refined)
     public static final Color PRIMARY = new Color(59, 130, 246); // Soft Blue
     public static final Color PRIMARY_DARK = new Color(37, 99, 235);
@@ -47,6 +87,10 @@ public class Constants {
 
     // Fonts — SemiBold simulated via PLAIN+BOLD hybrid; Java doesn't have native
     // SemiBold
+<<<<<<< HEAD
+=======
+>>>>>>> e7da53e (update fitur dan db)
+>>>>>>> 0274c08
     public static final String FONT_FAMILY = "Segoe UI";
     public static final Font FONT_TITLE = new Font(FONT_FAMILY, Font.BOLD, 22);
     public static final Font FONT_SUBTITLE = new Font(FONT_FAMILY, Font.BOLD, 16);
