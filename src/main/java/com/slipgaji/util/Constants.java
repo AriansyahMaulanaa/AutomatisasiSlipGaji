@@ -7,40 +7,46 @@ public class Constants {
     // App Info
     public static final String APP_NAME = "SlipGaji Pro";
     public static final String APP_VERSION = "1.1.0";
-    public static final String COMPANY_NAME = "PT. Maju Bersama Sejahtera";
+    public static final String COMPANY_NAME = "CV. Mandiri Sukses Pratama";
 
     // Paths
     public static final String APP_DIR = System.getProperty("user.dir");
-    public static final String DATA_DIR = APP_DIR + File.separator + "data";
-    public static final String DB_PATH = DATA_DIR + File.separator + "slipgaji.db";
     public static final String PDF_DIR = APP_DIR + File.separator + "output" + File.separator + "pdf";
 
+    // Database MariaDB
+    public static final String DB_HOST = "localhost";
+    public static final int DB_PORT = 3306;
+    public static final String DB_NAME = "slipgaji_db";
+    public static final String DB_USER = "root";
+    public static final String DB_PASS = "[REDACTED]";
+
     // Colors - Modern Light Theme (Refined)
-    public static final Color PRIMARY = new Color(59, 130, 246);        // Soft Blue
+    public static final Color PRIMARY = new Color(59, 130, 246); // Soft Blue
     public static final Color PRIMARY_DARK = new Color(37, 99, 235);
     public static final Color PRIMARY_LIGHT = new Color(147, 197, 253);
-    public static final Color ACCENT = new Color(16, 185, 129);         // Emerald Green
-    public static final Color ACCENT_WARN = new Color(245, 158, 11);    // Amber Orange
-    public static final Color ACCENT_DANGER = new Color(239, 68, 68);   // Soft Red
-    public static final Color REFRESH_BTN = new Color(107, 114, 128);   // Gray for Refresh
-    public static final Color BG_DARK = new Color(243, 244, 246);       // Soft Gray Background (#F3F4F6)
-    public static final Color BG_CARD = new Color(255, 255, 255);       // White Card
-    public static final Color BG_SURFACE = new Color(249, 250, 251);    // Very Light Surface
-    public static final Color TEXT_PRIMARY = new Color(17, 24, 39);      // Near-Black Text
+    public static final Color ACCENT = new Color(16, 185, 129); // Emerald Green
+    public static final Color ACCENT_WARN = new Color(245, 158, 11); // Amber Orange
+    public static final Color ACCENT_DANGER = new Color(239, 68, 68); // Soft Red
+    public static final Color REFRESH_BTN = new Color(107, 114, 128); // Gray for Refresh
+    public static final Color BG_DARK = new Color(243, 244, 246); // Soft Gray Background (#F3F4F6)
+    public static final Color BG_CARD = new Color(255, 255, 255); // White Card
+    public static final Color BG_SURFACE = new Color(249, 250, 251); // Very Light Surface
+    public static final Color TEXT_PRIMARY = new Color(17, 24, 39); // Near-Black Text
     public static final Color TEXT_SECONDARY = new Color(107, 114, 128); // Gray Text
-    public static final Color BORDER_COLOR = new Color(229, 231, 235);  // Light Border
-    public static final Color SIDEBAR_BG = new Color(255, 255, 255);    // White Sidebar
+    public static final Color BORDER_COLOR = new Color(229, 231, 235); // Light Border
+    public static final Color SIDEBAR_BG = new Color(255, 255, 255); // White Sidebar
     public static final Color SIDEBAR_ACTIVE_BG = new Color(239, 246, 255); // Light Blue Active
     public static final Color SUCCESS_BG = new Color(220, 252, 231);
     public static final Color FAILED_BG = new Color(254, 226, 226);
     public static final Color TABLE_ROW_ALT = new Color(249, 250, 251); // Zebra Row
-    public static final Color SHADOW_COLOR = new Color(0, 0, 0, 20);   // Subtle Shadow
+    public static final Color SHADOW_COLOR = new Color(0, 0, 0, 20); // Subtle Shadow
 
     // Login Gradient
-    public static final Color LOGIN_GRADIENT_START = new Color(99, 102, 241);  // Indigo
-    public static final Color LOGIN_GRADIENT_END = new Color(168, 85, 247);    // Purple
+    public static final Color LOGIN_GRADIENT_START = new Color(99, 102, 241); // Indigo
+    public static final Color LOGIN_GRADIENT_END = new Color(168, 85, 247); // Purple
 
-    // Fonts — SemiBold simulated via PLAIN+BOLD hybrid; Java doesn't have native SemiBold
+    // Fonts — SemiBold simulated via PLAIN+BOLD hybrid; Java doesn't have native
+    // SemiBold
     public static final String FONT_FAMILY = "Segoe UI";
     public static final Font FONT_TITLE = new Font(FONT_FAMILY, Font.BOLD, 22);
     public static final Font FONT_SUBTITLE = new Font(FONT_FAMILY, Font.BOLD, 16);
@@ -63,7 +69,6 @@ public class Constants {
 
     // Ensure directories exist
     public static void ensureDirectories() {
-        new File(DATA_DIR).mkdirs();
         new File(PDF_DIR).mkdirs();
     }
 }

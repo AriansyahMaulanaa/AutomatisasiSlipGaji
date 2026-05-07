@@ -1,7 +1,10 @@
 package com.slipgaji.service;
 
 import com.slipgaji.model.*;
+import com.slipgaji.util.ConfigManager;
 import com.slipgaji.util.Constants;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 
 import java.io.*;
 import java.sql.*;
@@ -10,7 +13,7 @@ import java.util.List;
 
 public class DatabaseService {
     private static DatabaseService instance;
-    private Connection connection;
+    private HikariDataSource dataSource;
 
     private DatabaseService() {}
 
@@ -23,9 +26,38 @@ public class DatabaseService {
 
     public void initialize() throws SQLException, IOException {
         Constants.ensureDirectories();
-        String url = "jdbc:sqlite:" + Constants.DB_PATH;
-        connection = DriverManager.getConnection(url);
-        connection.setAutoCommit(true);
+
+        String host = ConfigManager.getDbHost();
+        int port = ConfigManager.getDbPort();
+        String dbName = ConfigManager.getDbName();
+        String user = ConfigManager.getDbUser();
+        String pass = ConfigManager.getDbPassword();
+
+        // First, create the database if it doesn't exist
+        String baseUrl = "jdbc:mariadb://" + host + ":" + port + "/";
+        try (Connection conn = DriverManager.getConnection(baseUrl, user, pass)) {
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("CREATE DATABASE IF NOT EXISTS `" + dbName + "` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci");
+            }
+        }
+
+        // Setup HikariCP connection pool
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl(baseUrl + dbName);
+        config.setUsername(user);
+        config.setPassword(pass);
+        config.setMaximumPoolSize(10);
+        config.setMinimumIdle(2);
+        config.setIdleTimeout(300000);        // 5 minutes
+        config.setConnectionTimeout(10000);   // 10 seconds
+        config.setMaxLifetime(600000);        // 10 minutes
+        config.addDataSourceProperty("cachePrepStmts", "true");
+        config.addDataSourceProperty("prepStmtCacheSize", "250");
+        config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+
+        dataSource = new HikariDataSource(config);
+
+        // Execute init SQL script
         executeSqlScript();
         runMigrations();
     }
@@ -34,8 +66,9 @@ public class DatabaseService {
         try (InputStream is = getClass().getResourceAsStream("/db/init.sql")) {
             if (is == null) throw new IOException("init.sql not found in resources");
             String sql = new String(is.readAllBytes());
+            // Split on semicolons, but be careful with statements
             String[] statements = sql.split(";");
-            try (Statement stmt = connection.createStatement()) {
+            try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
                 for (String s : statements) {
                     String trimmed = s.trim();
                     if (!trimmed.isEmpty() && !trimmed.startsWith("--")) {
@@ -51,12 +84,13 @@ public class DatabaseService {
      */
     private void runMigrations() {
         // Add night_shift_incentive column if missing
-        addColumnIfNotExists("payslips", "night_shift_incentive", "REAL DEFAULT 0");
+        addColumnIfNotExists("payslips", "night_shift_incentive", "DOUBLE DEFAULT 0");
         // Add is_night_shift column if missing
-        addColumnIfNotExists("payslips", "is_night_shift", "INTEGER DEFAULT 0");
+        addColumnIfNotExists("payslips", "is_night_shift", "TINYINT DEFAULT 0");
         // Add night_shift_rate setting if missing
-        try (PreparedStatement ps = connection.prepareStatement(
-                "INSERT OR IGNORE INTO settings (key, value) VALUES ('night_shift_rate', '50000')")) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                "INSERT IGNORE INTO settings (`key`, `value`) VALUES ('night_shift_rate', '50000')")) {
             ps.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -64,12 +98,11 @@ public class DatabaseService {
     }
 
     private void addColumnIfNotExists(String table, String column, String type) {
-        try {
-            // Check if column exists
-            DatabaseMetaData meta = connection.getMetaData();
+        try (Connection conn = getConnection()) {
+            DatabaseMetaData meta = conn.getMetaData();
             ResultSet rs = meta.getColumns(null, null, table, column);
             if (!rs.next()) {
-                try (Statement stmt = connection.createStatement()) {
+                try (Statement stmt = conn.createStatement()) {
                     stmt.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
                 }
             }
@@ -79,15 +112,16 @@ public class DatabaseService {
         }
     }
 
-    public Connection getConnection() {
-        return connection;
+    public Connection getConnection() throws SQLException {
+        return dataSource.getConnection();
     }
 
     // ================= USER OPERATIONS =================
 
     public User authenticate(String username, String password) {
         String sql = "SELECT * FROM users WHERE username = ? AND password = ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, username);
             ps.setString(2, password);
             ResultSet rs = ps.executeQuery();
@@ -109,13 +143,14 @@ public class DatabaseService {
 
     public int saveOrUpdateEmployee(Employee emp) {
         String check = "SELECT id FROM employees WHERE employee_id = ?";
-        try (PreparedStatement ps = connection.prepareStatement(check)) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(check)) {
             ps.setString(1, emp.getEmployeeId());
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
                 int id = rs.getInt("id");
                 String update = "UPDATE employees SET name=?, email=?, position=?, department=?, base_salary=? WHERE id=?";
-                try (PreparedStatement ups = connection.prepareStatement(update)) {
+                try (PreparedStatement ups = conn.prepareStatement(update)) {
                     ups.setString(1, emp.getName());
                     ups.setString(2, emp.getEmail());
                     ups.setString(3, emp.getPosition());
@@ -127,7 +162,7 @@ public class DatabaseService {
                 return id;
             } else {
                 String insert = "INSERT INTO employees (employee_id, name, email, position, department, base_salary) VALUES (?,?,?,?,?,?)";
-                try (PreparedStatement ips = connection.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
+                try (PreparedStatement ips = conn.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
                     ips.setString(1, emp.getEmployeeId());
                     ips.setString(2, emp.getName());
                     ips.setString(3, emp.getEmail());
@@ -148,7 +183,9 @@ public class DatabaseService {
     public List<Employee> getAllEmployees() {
         List<Employee> list = new ArrayList<>();
         String sql = "SELECT * FROM employees ORDER BY name";
-        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(sql)) {
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
                 Employee e = new Employee();
                 e.setId(rs.getInt("id"));
@@ -167,7 +204,8 @@ public class DatabaseService {
     }
 
     public int getEmployeeCount() {
-        try (Statement stmt = connection.createStatement();
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM employees")) {
             if (rs.next()) return rs.getInt(1);
         } catch (SQLException e) { e.printStackTrace(); }
@@ -179,7 +217,8 @@ public class DatabaseService {
     public int savePayslip(Payslip payslip) {
         // Check if payslip already exists for this employee + period
         String check = "SELECT id FROM payslips WHERE employee_id = ? AND period = ?";
-        try (PreparedStatement ps = connection.prepareStatement(check)) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(check)) {
             ps.setInt(1, payslip.getEmployeeId());
             ps.setString(2, payslip.getPeriod());
             ResultSet rs = ps.executeQuery();
@@ -188,7 +227,7 @@ public class DatabaseService {
                 String update = "UPDATE payslips SET days_present=?, days_absent=?, overtime_hours=?, " +
                         "base_salary=?, overtime_pay=?, deductions=?, allowances=?, net_salary=?, " +
                         "night_shift_incentive=?, is_night_shift=?, pdf_path=? WHERE id=?";
-                try (PreparedStatement ups = connection.prepareStatement(update)) {
+                try (PreparedStatement ups = conn.prepareStatement(update)) {
                     ups.setInt(1, payslip.getDaysPresent());
                     ups.setInt(2, payslip.getDaysAbsent());
                     ups.setDouble(3, payslip.getOvertimeHours());
@@ -210,7 +249,8 @@ public class DatabaseService {
         String insert = "INSERT INTO payslips (employee_id, period, days_present, days_absent, overtime_hours, " +
                 "base_salary, overtime_pay, deductions, allowances, net_salary, night_shift_incentive, is_night_shift, pdf_path) " +
                 "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
-        try (PreparedStatement ps = connection.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, payslip.getEmployeeId());
             ps.setString(2, payslip.getPeriod());
             ps.setInt(3, payslip.getDaysPresent());
@@ -240,7 +280,8 @@ public class DatabaseService {
                 "JOIN employees e ON p.employee_id = e.id " +
                 (period != null && !period.isEmpty() ? "WHERE p.period = ? " : "") +
                 "ORDER BY e.name";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             if (period != null && !period.isEmpty()) {
                 ps.setString(1, period);
             }
@@ -257,7 +298,8 @@ public class DatabaseService {
 
     public List<String> getPayslipPeriods() {
         List<String> periods = new ArrayList<>();
-        try (Statement stmt = connection.createStatement();
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery("SELECT DISTINCT period FROM payslips ORDER BY period DESC")) {
             while (rs.next()) {
                 periods.add(rs.getString("period"));
@@ -272,7 +314,9 @@ public class DatabaseService {
                      "SUM(CASE WHEN p.pdf_path IS NOT NULL AND p.pdf_path != '' THEN 1 ELSE 0 END) as pdf_count " +
                      "FROM payslips p GROUP BY p.period ORDER BY p.period DESC";
 
-        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(sql)) {
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
                 PeriodSummary summary = new PeriodSummary();
                 String period = rs.getString("period");
@@ -284,7 +328,7 @@ public class DatabaseService {
                 // We need to count how many successful emails were sent for this period
                 int sentCount = 0;
                 String sentSql = "SELECT COUNT(DISTINCT payslip_id) FROM send_history WHERE period = ? AND status = 'SUCCESS'";
-                try (PreparedStatement ps = connection.prepareStatement(sentSql)) {
+                try (PreparedStatement ps = conn.prepareStatement(sentSql)) {
                     ps.setString(1, period);
                     ResultSet rsSent = ps.executeQuery();
                     if (rsSent.next()) {
@@ -305,7 +349,8 @@ public class DatabaseService {
         String sql = "SELECT p.*, e.name as emp_name, e.email as emp_email, e.employee_id as emp_code, " +
                 "e.position, e.department FROM payslips p " +
                 "JOIN employees e ON p.employee_id = e.id WHERE p.id = ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, id);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) return mapPayslip(rs);
@@ -314,7 +359,8 @@ public class DatabaseService {
     }
 
     public void updatePayslipPdfPath(int payslipId, String pdfPath) {
-        try (PreparedStatement ps = connection.prepareStatement("UPDATE payslips SET pdf_path = ? WHERE id = ?")) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement("UPDATE payslips SET pdf_path = ? WHERE id = ?")) {
             ps.setString(1, pdfPath);
             ps.setInt(2, payslipId);
             ps.executeUpdate();
@@ -322,7 +368,8 @@ public class DatabaseService {
     }
 
     public int getPayslipCount() {
-        try (Statement stmt = connection.createStatement();
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM payslips")) {
             if (rs.next()) return rs.getInt(1);
         } catch (SQLException e) { e.printStackTrace(); }
@@ -372,7 +419,8 @@ public class DatabaseService {
 
     public void deletePayslip(int id) {
         String sql = "DELETE FROM payslips WHERE id = ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, id);
             ps.executeUpdate();
         } catch (SQLException e) {
@@ -385,7 +433,8 @@ public class DatabaseService {
     public void saveSendHistory(SendHistory history) {
         String sql = "INSERT INTO send_history (payslip_id, employee_name, employee_email, period, status, error_message, sent_by) " +
                 "VALUES (?,?,?,?,?,?,?)";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, history.getPayslipId());
             ps.setString(2, history.getEmployeeName());
             ps.setString(3, history.getEmployeeEmail());
@@ -404,7 +453,8 @@ public class DatabaseService {
         String sql = "SELECT * FROM send_history " +
                 (period != null && !period.isEmpty() ? "WHERE period = ? " : "") +
                 "ORDER BY sent_at DESC";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             if (period != null && !period.isEmpty()) {
                 ps.setString(1, period);
             }
@@ -429,7 +479,8 @@ public class DatabaseService {
     }
 
     public int getSentCount() {
-        try (Statement stmt = connection.createStatement();
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM send_history WHERE status='SUCCESS'")) {
             if (rs.next()) return rs.getInt(1);
         } catch (SQLException e) { e.printStackTrace(); }
@@ -437,7 +488,8 @@ public class DatabaseService {
     }
 
     public int getFailedCount() {
-        try (Statement stmt = connection.createStatement();
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM send_history WHERE status='FAILED'")) {
             if (rs.next()) return rs.getInt(1);
         } catch (SQLException e) { e.printStackTrace(); }
@@ -447,7 +499,8 @@ public class DatabaseService {
     // ================= SETTINGS OPERATIONS =================
 
     public String getSetting(String key) {
-        try (PreparedStatement ps = connection.prepareStatement("SELECT value FROM settings WHERE key = ?")) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement("SELECT `value` FROM settings WHERE `key` = ?")) {
             ps.setString(1, key);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) return rs.getString("value");
@@ -456,8 +509,9 @@ public class DatabaseService {
     }
 
     public void saveSetting(String key, String value) {
-        try (PreparedStatement ps = connection.prepareStatement(
-                "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)")) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)")) {
             ps.setString(1, key);
             ps.setString(2, value);
             ps.executeUpdate();
@@ -476,10 +530,8 @@ public class DatabaseService {
     }
 
     public void close() {
-        try {
-            if (connection != null && !connection.isClosed()) {
-                connection.close();
-            }
-        } catch (SQLException e) { e.printStackTrace(); }
+        if (dataSource != null && !dataSource.isClosed()) {
+            dataSource.close();
+        }
     }
 }

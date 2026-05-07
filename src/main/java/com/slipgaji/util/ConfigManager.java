@@ -36,9 +36,34 @@ public class ConfigManager {
 
     private static void save() {
         try (FileOutputStream fos = new FileOutputStream(CONFIG_FILE)) {
-            props.store(fos, "SlipGaji Local Configurations");
+            props.store(fos, "SlipGaji Pro - Local Configurations");
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    // Database config helpers
+    public static String getDbHost() {
+        return get("db_host", Constants.DB_HOST);
+    }
+
+    public static int getDbPort() {
+        try {
+            return Integer.parseInt(get("db_port", String.valueOf(Constants.DB_PORT)));
+        } catch (NumberFormatException e) {
+            return Constants.DB_PORT;
+        }
+    }
+
+    public static String getDbName() {
+        return get("db_name", Constants.DB_NAME);
+    }
+
+    public static String getDbUser() {
+        return get("db_user", Constants.DB_USER);
+    }
+
+    public static String getDbPassword() {
+        return get("db_password", Constants.DB_PASS);
     }
 }

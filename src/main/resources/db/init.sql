@@ -1,64 +1,64 @@
 CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT NOT NULL UNIQUE,
-    password TEXT NOT NULL,
-    role TEXT NOT NULL CHECK(role IN ('SUPERVISOR','GENERAL_MANAGER')),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('SUPERVISOR','GENERAL_MANAGER') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS employees (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    employee_id TEXT NOT NULL UNIQUE,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL,
-    position TEXT,
-    department TEXT,
-    base_salary REAL DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    employee_id VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    position VARCHAR(100),
+    department VARCHAR(100),
+    base_salary DOUBLE DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS payslips (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    employee_id INTEGER NOT NULL,
-    period TEXT NOT NULL,
-    days_present INTEGER DEFAULT 0,
-    days_absent INTEGER DEFAULT 0,
-    overtime_hours REAL DEFAULT 0,
-    base_salary REAL DEFAULT 0,
-    overtime_pay REAL DEFAULT 0,
-    deductions REAL DEFAULT 0,
-    allowances REAL DEFAULT 0,
-    net_salary REAL DEFAULT 0,
-    night_shift_incentive REAL DEFAULT 0,
-    is_night_shift INTEGER DEFAULT 0,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    employee_id INT NOT NULL,
+    period VARCHAR(20) NOT NULL,
+    days_present INT DEFAULT 0,
+    days_absent INT DEFAULT 0,
+    overtime_hours DOUBLE DEFAULT 0,
+    base_salary DOUBLE DEFAULT 0,
+    overtime_pay DOUBLE DEFAULT 0,
+    deductions DOUBLE DEFAULT 0,
+    allowances DOUBLE DEFAULT 0,
+    net_salary DOUBLE DEFAULT 0,
+    night_shift_incentive DOUBLE DEFAULT 0,
+    is_night_shift TINYINT DEFAULT 0,
     pdf_path TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (employee_id) REFERENCES employees(id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS send_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    payslip_id INTEGER NOT NULL,
-    employee_name TEXT,
-    employee_email TEXT,
-    period TEXT,
-    sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    status TEXT CHECK(status IN ('SUCCESS','FAILED')),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    payslip_id INT NOT NULL,
+    employee_name VARCHAR(255),
+    employee_email VARCHAR(255),
+    period VARCHAR(20),
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('SUCCESS','FAILED'),
     error_message TEXT,
-    sent_by TEXT,
+    sent_by VARCHAR(100),
     FOREIGN KEY (payslip_id) REFERENCES payslips(id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT
-);
+    `key` VARCHAR(100) PRIMARY KEY,
+    `value` TEXT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT OR IGNORE INTO users (username, password, role) VALUES
+INSERT IGNORE INTO users (username, password, role) VALUES
     ('supervisor', 'supervisor123', 'SUPERVISOR'),
     ('gm', 'manager123', 'GENERAL_MANAGER');
 
-INSERT OR IGNORE INTO settings (key, value) VALUES
+INSERT IGNORE INTO settings (`key`, `value`) VALUES
     ('smtp_host', 'smtp.gmail.com'),
     ('smtp_port', '587'),
     ('smtp_email', ''),
