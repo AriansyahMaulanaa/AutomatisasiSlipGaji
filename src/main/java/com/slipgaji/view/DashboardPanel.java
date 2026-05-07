@@ -10,12 +10,14 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 
 public class DashboardPanel extends JPanel {
+    private MainView mainView;
     private JLabel empCountLabel;
     private JLabel payslipCountLabel;
     private JLabel sentCountLabel;
     private JLabel failedCountLabel;
 
-    public DashboardPanel() {
+    public DashboardPanel(MainView mainView) {
+        this.mainView = mainView;
         initUI();
     }
 
@@ -71,14 +73,16 @@ public class DashboardPanel extends JPanel {
                 + "<p style='color:#333333;'>Langkah-langkah menggunakan " + Constants.APP_NAME + ":</p>"
                 + "<ol style='color:#555555;'>"
                 + "<li><b>Import Data</b> — Upload file Excel (.xlsx) berisi data presensi karyawan</li>"
-                + "<li><b>Review Slip</b> — Sistem otomatis menghitung gaji dan generate slip</li>"
-                + "<li><b>Preview PDF</b> — Cek desain slip gaji sebelum dikirim</li>"
-                + "<li><b>Kirim Email</b> — Kirim slip ke email masing-masing karyawan</li>"
-                + "<li><b>Histori</b> — Cek status pengiriman email</li>"
+                + "<li><b>Slip Gaji</b> — Sistem otomatis menghitung gaji, Anda dpt generate PDF untuk periode bersangkutan</li>"
+                + "<li><b>Kirim Email</b> — Mengoperasikan bulk send/batch kirim email massal</li>"
+                + "<li><b>Histori</b> — Cek rekam status pengiriman email</li>"
                 + "</ol>"
+<<<<<<< HEAD
                 + "<p style='color:#777777; font-size:11px; margin-top:8px;'>"
                 + "💡 <i>Format Excel: Employee ID | Nama | Email | Posisi | Departemen | Gaji Pokok | Hari Hadir | Hari Absen | Jam Lembur</i>"
                 + "</p>"
+=======
+>>>>>>> e7da53e (update fitur dan db)
                 + "</div></html>");
         infoText.setFont(Constants.FONT_BODY);
         infoCard.add(infoText, BorderLayout.CENTER);

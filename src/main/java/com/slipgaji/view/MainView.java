@@ -50,7 +50,7 @@ public class MainView extends JFrame {
         contentPanel = new JPanel(cardLayout);
         contentPanel.setBackground(Constants.BG_DARK);
 
-        dashboardPanel = new DashboardPanel();
+        dashboardPanel = new DashboardPanel(this);
         importPanel = new ImportPanel(this);
         payslipPanel = new PayslipPanel();
         historyPanel = new HistoryPanel();
@@ -201,5 +201,9 @@ public class MainView extends JFrame {
 
     public void navigateToPayslips() {
         switchPanel("payslip");
+    }
+
+    public void navigateToImport() {
+        switchPanel("import");
     }
 }
