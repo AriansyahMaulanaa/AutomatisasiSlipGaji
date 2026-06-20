@@ -31,7 +31,7 @@ public class AuthController {
         currentUser = null;
     }
 
-    public static boolean isGeneralManager() {
-        return currentUser != null && currentUser.isGeneralManager();
+    public static boolean isManager() {
+        return currentUser != null && currentUser.isManager();
     }
 }

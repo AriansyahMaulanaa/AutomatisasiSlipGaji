@@ -8,6 +8,7 @@ public class Employee {
     private String position;
     private String department;
     private double baseSalary;
+    private String employmentType = "TETAP";
 
     // Transient fields (from Excel import, not stored in employees table)
     private int daysPresent;
@@ -42,6 +43,8 @@ public class Employee {
     public void setDepartment(String department) { this.department = department; }
     public double getBaseSalary() { return baseSalary; }
     public void setBaseSalary(double baseSalary) { this.baseSalary = baseSalary; }
+    public String getEmploymentType() { return employmentType; }
+    public void setEmploymentType(String employmentType) { this.employmentType = employmentType; }
     public int getDaysPresent() { return daysPresent; }
     public void setDaysPresent(int daysPresent) { this.daysPresent = daysPresent; }
     public int getDaysAbsent() { return daysAbsent; }

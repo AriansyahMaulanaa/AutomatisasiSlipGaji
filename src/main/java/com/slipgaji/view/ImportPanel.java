@@ -3,6 +3,7 @@ package com.slipgaji.view;
 import com.slipgaji.controller.ImportController;
 import com.slipgaji.model.Employee;
 import com.slipgaji.model.Payslip;
+import com.slipgaji.service.ExcelService.ImportResult;
 import com.slipgaji.util.Constants;
 import com.slipgaji.util.UIHelper;
 
@@ -98,7 +99,7 @@ public class ImportPanel extends JPanel {
 
         // Table
         String[] columns = {"No", "ID Karyawan", "Nama", "Email", "Posisi", "Departemen",
-                "Gaji Pokok", "Hari Hadir", "Hari Absen", "Jam Lembur", "Shift Malam"};
+                "Gaji Pokok", "Hari Hadir", "Hari Absen", "Jam Lembur", "Shift Malam", "Tipe"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) { return false; }
@@ -128,18 +129,55 @@ public class ImportPanel extends JPanel {
 
         if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             File file = chooser.getSelectedFile();
+
+            if (!file.getName().toLowerCase().endsWith(".xlsx")) {
+                UIHelper.showError(this, "File bukan format Excel (.xlsx).\nFile yang dipilih: " + file.getName());
+                return;
+            }
+
             fileLabel.setText("📎 " + file.getName());
             fileLabel.setForeground(Constants.ACCENT);
 
             try {
-                importedEmployees = importController.readExcel(file);
-                populateTable(importedEmployees);
-                processButton.setEnabled(true);
+                System.err.println("[Import] Reading file: " + file.getAbsolutePath());
+                ImportResult result = importController.readExcel(file);
+                importedEmployees = result.getEmployees();
 
-                UIHelper.showSuccess(this, "Berhasil membaca " + importedEmployees.size()
-                        + " data karyawan dari file Excel.");
+                System.err.println("[Import] Valid employees: " + importedEmployees.size()
+                    + ", Errors: " + result.getErrors().size()
+                    + ", Warnings: " + result.getWarnings().size());
+
+                boolean hasErrors = !result.getErrors().isEmpty();
+                boolean hasWarnings = !result.getWarnings().isEmpty();
+
+                if (hasErrors) {
+                    UIHelper.showValidationDialog(this, "Error Validasi Data", result.getErrors(), true);
+                }
+
+                if (hasWarnings) {
+                    UIHelper.showValidationDialog(this, "Peringatan Validasi Data", result.getWarnings(), false);
+                }
+
+                populateTable(importedEmployees);
+
+                if (hasErrors || importedEmployees.isEmpty()) {
+                    processButton.setEnabled(false);
+                    if (hasErrors) {
+                        UIHelper.showError(this, "Terdapat " + result.getErrors().size()
+                                + " error pada data.\nPerbaiki file Excel dan import ulang.\n"
+                                + "Data valid: " + importedEmployees.size() + " karyawan.");
+                    } else {
+                        UIHelper.showError(this, "Tidak ada data valid yang bisa diproses.");
+                    }
+                } else {
+                    processButton.setEnabled(true);
+                    UIHelper.showSuccess(this, "Berhasil membaca " + importedEmployees.size()
+                            + " data karyawan dari file Excel.");
+                }
 
             } catch (Exception ex) {
+                System.err.println("[Import] ERROR: " + ex.getMessage());
+                ex.printStackTrace();
                 UIHelper.showError(this, "Gagal membaca file Excel:\n" + ex.getMessage());
                 processButton.setEnabled(false);
             }
@@ -150,6 +188,11 @@ public class ImportPanel extends JPanel {
         tableModel.setRowCount(0);
         int no = 1;
         for (Employee emp : employees) {
+            String typeLabel = switch (emp.getEmploymentType() != null ? emp.getEmploymentType() : "TETAP") {
+                case "PKWT" -> "PKWT";
+                case "KANTOR" -> "Kantor";
+                default -> "Tetap";
+            };
             tableModel.addRow(new Object[]{
                     no++,
                     emp.getEmployeeId(),
@@ -161,7 +204,8 @@ public class ImportPanel extends JPanel {
                     emp.getDaysPresent(),
                     emp.getDaysAbsent(),
                     emp.getOvertimeHours(),
-                    emp.isNightShift() ? "Ya" : "Tidak"
+                    emp.isNightShift() ? "Ya" : "Tidak",
+                    typeLabel
             });
         }
     }

@@ -65,6 +65,25 @@ public class EmailController {
         }
     }
 
+    public static class BatchResult {
+        private final int success;
+        private final int failed;
+        private final List<String> failedNames;
+        private final List<String> failedErrors;
+
+        public BatchResult(int success, int failed, List<String> failedNames, List<String> failedErrors) {
+            this.success = success;
+            this.failed = failed;
+            this.failedNames = failedNames;
+            this.failedErrors = failedErrors;
+        }
+
+        public int getSuccess() { return success; }
+        public int getFailed() { return failed; }
+        public List<String> getFailedNames() { return failedNames; }
+        public List<String> getFailedErrors() { return failedErrors; }
+    }
+
     public void sendBatch(List<Payslip> payslips, BatchCallback callback) {
         EmailService emailService = createEmailService();
         String sentBy = AuthController.getCurrentUser() != null ?
@@ -72,11 +91,12 @@ public class EmailController {
 
         PayslipController pc = new PayslipController();
         int success = 0, failed = 0;
+        List<String> failedNames = new java.util.ArrayList<>();
+        List<String> failedErrors = new java.util.ArrayList<>();
 
         for (int i = 0; i < payslips.size(); i++) {
             Payslip payslip = payslips.get(i);
             try {
-                // Generate PDF if needed
                 if (payslip.getPdfPath() == null || payslip.getPdfPath().isEmpty()) {
                     pc.generatePdf(payslip);
                 }
@@ -105,13 +125,15 @@ public class EmailController {
                 );
                 db.saveSendHistory(history);
                 failed++;
+                failedNames.add(payslip.getEmployeeName());
+                failedErrors.add(e.getMessage());
 
                 if (callback != null) callback.onProgress(i + 1, payslips.size(),
                         payslip.getEmployeeName(), "FAILED", e.getMessage());
             }
         }
 
-        if (callback != null) callback.onComplete(success, failed);
+        if (callback != null) callback.onComplete(success, failed, failedNames, failedErrors);
     }
 
     public boolean testSmtpConnection() {
@@ -121,6 +143,6 @@ public class EmailController {
 
     public interface BatchCallback {
         void onProgress(int current, int total, String name, String status, String error);
-        void onComplete(int success, int failed);
+        void onComplete(int success, int failed, java.util.List<String> failedNames, java.util.List<String> failedErrors);
     }
 }

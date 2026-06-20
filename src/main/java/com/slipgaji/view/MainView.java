@@ -51,7 +51,6 @@ public class MainView extends JFrame {
         contentWrapper.setBackground(Constants.BG_DARK);
         contentWrapper.setBorder(new EmptyBorder(16, 8, 16, 16));
 
-<<<<<<< HEAD
         cardLayout = new CardLayout();
         contentPanel = new JPanel(cardLayout) {
             @Override
@@ -79,9 +78,8 @@ public class MainView extends JFrame {
         contentPanel.setOpaque(false);
         contentPanel.setBorder(new EmptyBorder(4, 4, 4, 4));
 
-=======
->>>>>>> 0274c08
-        dashboardPanel = new DashboardPanel(this);
+
+        dashboardPanel = new DashboardPanel();
         importPanel = new ImportPanel(this);
         payslipPanel = new PayslipPanel();
         historyPanel = new HistoryPanel();
@@ -91,7 +89,7 @@ public class MainView extends JFrame {
         contentPanel.add(payslipPanel, "payslip");
         contentPanel.add(historyPanel, "history");
 
-        if (currentUser.isGeneralManager()) {
+        if (AuthController.isManager()) {
             settingsPanel = new SettingsPanel();
             contentPanel.add(settingsPanel, "settings");
         }
@@ -165,12 +163,12 @@ public class MainView extends JFrame {
         sidebar.add(menuLabel);
 
         // Menu items
-        addMenuItem(sidebar, "dashboard", "📊", "Dashboard");
-        addMenuItem(sidebar, "import", "📥", "Import Data");
-        addMenuItem(sidebar, "payslip", "📄", "Slip Gaji");
-        addMenuItem(sidebar, "history", "📋", "Histori Pengiriman");
+        addMenuItem(sidebar, "dashboard", "Dashboard");
+        addMenuItem(sidebar, "import", "Import Data");
+        addMenuItem(sidebar, "payslip", "Slip Gaji");
+        addMenuItem(sidebar, "history", "Histori Pengiriman");
 
-        if (currentUser.isGeneralManager()) {
+        if (AuthController.isManager()) {
             sidebar.add(Box.createVerticalStrut(16));
             JLabel adminLabel = new JLabel("  ADMIN");
             adminLabel.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 10));
@@ -178,7 +176,7 @@ public class MainView extends JFrame {
             adminLabel.setBorder(new EmptyBorder(0, 20, 10, 0));
             adminLabel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
             sidebar.add(adminLabel);
-            addMenuItem(sidebar, "settings", "⚙", "Pengaturan");
+            addMenuItem(sidebar, "settings", "Pengaturan");
         }
 
         sidebar.add(Box.createVerticalGlue());
@@ -238,8 +236,8 @@ public class MainView extends JFrame {
         return sep;
     }
 
-    private void addMenuItem(JPanel sidebar, String key, String icon, String text) {
-        JButton btn = UIHelper.createSidebarButton(icon + "  " + text, "");
+    private void addMenuItem(JPanel sidebar, String key, String text) {
+        JButton btn = UIHelper.createSidebarButton(text, "");
         btn.addActionListener(e -> switchPanel(key));
         menuButtons.put(key, btn);
         sidebar.add(btn);

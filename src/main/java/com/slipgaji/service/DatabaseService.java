@@ -11,6 +11,8 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.mindrot.jbcrypt.BCrypt;
+
 public class DatabaseService {
     private static DatabaseService instance;
     private HikariDataSource dataSource;
@@ -79,13 +81,6 @@ public class DatabaseService {
         }
     }
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-    public Connection getConnection() {
-        return connection;
-=======
->>>>>>> 0274c08
     /**
      * Run schema migrations for existing databases that don't have new columns.
      */
@@ -94,11 +89,91 @@ public class DatabaseService {
         addColumnIfNotExists("payslips", "night_shift_incentive", "DOUBLE DEFAULT 0");
         // Add is_night_shift column if missing
         addColumnIfNotExists("payslips", "is_night_shift", "TINYINT DEFAULT 0");
+        // Add employment_type column if missing
+        addColumnIfNotExists("employees", "employment_type", "VARCHAR(20) DEFAULT 'TETAP'");
         // Add night_shift_rate setting if missing
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(
                 "INSERT IGNORE INTO settings (`key`, `value`) VALUES ('night_shift_rate', '50000')")) {
             ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        // Insert default PKWT settings if missing
+        insertSettingIfMissing("overtime_rate_per_hour_pkwt", "20000");
+        insertSettingIfMissing("daily_rate_divisor_pkwt", "22");
+        insertSettingIfMissing("transport_allowance_pkwt", "300000");
+        insertSettingIfMissing("meal_allowance_pkwt", "200000");
+        insertSettingIfMissing("night_shift_rate_pkwt", "40000");
+        // Insert default Kantor settings if missing
+        insertSettingIfMissing("overtime_rate_per_hour_kantor", "30000");
+        insertSettingIfMissing("daily_rate_divisor_kantor", "22");
+        insertSettingIfMissing("transport_allowance_kantor", "400000");
+        insertSettingIfMissing("meal_allowance_kantor", "250000");
+        insertSettingIfMissing("night_shift_rate_kantor", "45000");
+        // Insert default Crewstore settings if missing
+        insertSettingIfMissing("crewstore_overtime_rate_per_hour", "25000");
+        insertSettingIfMissing("crewstore_daily_rate_divisor", "22");
+        insertSettingIfMissing("crewstore_transport_allowance", "500000");
+        insertSettingIfMissing("crewstore_meal_allowance", "300000");
+        insertSettingIfMissing("crewstore_night_shift_rate", "50000");
+        // Insert default Store Leader settings if missing
+        insertSettingIfMissing("store_leader_overtime_rate_per_hour", "30000");
+        insertSettingIfMissing("store_leader_daily_rate_divisor", "22");
+        insertSettingIfMissing("store_leader_transport_allowance", "600000");
+        insertSettingIfMissing("store_leader_meal_allowance", "350000");
+        insertSettingIfMissing("store_leader_night_shift_rate", "55000");
+        // Insert default Manager settings if missing
+        insertSettingIfMissing("manager_overtime_rate_per_hour", "35000");
+        insertSettingIfMissing("manager_daily_rate_divisor", "22");
+        insertSettingIfMissing("manager_transport_allowance", "700000");
+        insertSettingIfMissing("manager_meal_allowance", "400000");
+        insertSettingIfMissing("manager_night_shift_rate", "60000");
+        // Migrate old role names to new enum values
+        migrateRoles();
+        // Hash existing plain-text passwords
+        migratePasswords();
+    }
+
+    private void insertSettingIfMissing(String key, String value) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                "INSERT IGNORE INTO settings (`key`, `value`) VALUES (?, ?)")) {
+            ps.setString(1, key);
+            ps.setString(2, value);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void migrateRoles() {
+        try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate("ALTER TABLE users MODIFY COLUMN role VARCHAR(50)");
+            stmt.executeUpdate("UPDATE users SET role = 'SPV' WHERE role = 'SUPERVISOR'");
+            stmt.executeUpdate("UPDATE users SET role = 'MANAGER' WHERE role = 'GENERAL_MANAGER'");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void migratePasswords() {
+        String select = "SELECT id, password FROM users";
+        String update = "UPDATE users SET password = ? WHERE id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement sel = conn.prepareStatement(select);
+             PreparedStatement upd = conn.prepareStatement(update);
+             ResultSet rs = sel.executeQuery()) {
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String pw = rs.getString("password");
+                if (pw != null && !pw.startsWith("$2")) {
+                    String hash = BCrypt.hashpw(pw, BCrypt.gensalt());
+                    upd.setString(1, hash);
+                    upd.setInt(2, id);
+                    upd.executeUpdate();
+                }
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -121,26 +196,25 @@ public class DatabaseService {
 
     public Connection getConnection() throws SQLException {
         return dataSource.getConnection();
-<<<<<<< HEAD
-=======
->>>>>>> e7da53e (update fitur dan db)
->>>>>>> 0274c08
     }
 
     // ================= USER OPERATIONS =================
 
     public User authenticate(String username, String password) {
-        String sql = "SELECT * FROM users WHERE username = ? AND password = ?";
+        String sql = "SELECT * FROM users WHERE username = ?";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, username);
-            ps.setString(2, password);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
+                String storedHash = rs.getString("password");
+                if (storedHash == null || !BCrypt.checkpw(password, storedHash)) {
+                    return null;
+                }
                 User user = new User();
                 user.setId(rs.getInt("id"));
                 user.setUsername(rs.getString("username"));
-                user.setPassword(rs.getString("password"));
+                user.setPassword(storedHash);
                 user.setRole(User.Role.valueOf(rs.getString("role")));
                 return user;
             }
@@ -160,19 +234,20 @@ public class DatabaseService {
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
                 int id = rs.getInt("id");
-                String update = "UPDATE employees SET name=?, email=?, position=?, department=?, base_salary=? WHERE id=?";
+                String update = "UPDATE employees SET name=?, email=?, position=?, department=?, base_salary=?, employment_type=? WHERE id=?";
                 try (PreparedStatement ups = conn.prepareStatement(update)) {
                     ups.setString(1, emp.getName());
                     ups.setString(2, emp.getEmail());
                     ups.setString(3, emp.getPosition());
                     ups.setString(4, emp.getDepartment());
                     ups.setDouble(5, emp.getBaseSalary());
-                    ups.setInt(6, id);
+                    ups.setString(6, emp.getEmploymentType());
+                    ups.setInt(7, id);
                     ups.executeUpdate();
                 }
                 return id;
             } else {
-                String insert = "INSERT INTO employees (employee_id, name, email, position, department, base_salary) VALUES (?,?,?,?,?,?)";
+                String insert = "INSERT INTO employees (employee_id, name, email, position, department, base_salary, employment_type) VALUES (?,?,?,?,?,?,?)";
                 try (PreparedStatement ips = conn.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
                     ips.setString(1, emp.getEmployeeId());
                     ips.setString(2, emp.getName());
@@ -180,6 +255,7 @@ public class DatabaseService {
                     ips.setString(4, emp.getPosition());
                     ips.setString(5, emp.getDepartment());
                     ips.setDouble(6, emp.getBaseSalary());
+                    ips.setString(7, emp.getEmploymentType());
                     ips.executeUpdate();
                     ResultSet keys = ips.getGeneratedKeys();
                     if (keys.next()) return keys.getInt(1);
@@ -191,9 +267,41 @@ public class DatabaseService {
         return -1;
     }
 
+    public void updateEmployee(Employee emp) {
+        String sql = "UPDATE employees SET name=?, email=?, position=?, department=?, base_salary=?, employment_type=? WHERE id=?";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, emp.getName());
+            ps.setString(2, emp.getEmail());
+            ps.setString(3, emp.getPosition());
+            ps.setString(4, emp.getDepartment());
+            ps.setDouble(5, emp.getBaseSalary());
+            ps.setString(6, emp.getEmploymentType());
+            ps.setInt(7, emp.getId());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void updatePayslipData(int payslipId, double baseSalary, int daysPresent, int daysAbsent, double overtimeHours) {
+        String sql = "UPDATE payslips SET base_salary=?, days_present=?, days_absent=?, overtime_hours=? WHERE id=?";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDouble(1, baseSalary);
+            ps.setInt(2, daysPresent);
+            ps.setInt(3, daysAbsent);
+            ps.setDouble(4, overtimeHours);
+            ps.setInt(5, payslipId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
     public List<Employee> getAllEmployees() {
         List<Employee> list = new ArrayList<>();
-        String sql = "SELECT * FROM employees ORDER BY name";
+        String sql =         "SELECT *, COALESCE(employment_type, 'TETAP') as employment_type FROM employees ORDER BY name";
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
@@ -206,6 +314,7 @@ public class DatabaseService {
                 e.setPosition(rs.getString("position"));
                 e.setDepartment(rs.getString("department"));
                 e.setBaseSalary(rs.getDouble("base_salary"));
+                e.setEmploymentType(rs.getString("employment_type") != null ? rs.getString("employment_type") : "TETAP");
                 list.add(e);
             }
         } catch (SQLException e) {
@@ -236,20 +345,9 @@ public class DatabaseService {
             if (rs.next()) {
                 int id = rs.getInt("id");
                 String update = "UPDATE payslips SET days_present=?, days_absent=?, overtime_hours=?, " +
-<<<<<<< HEAD
                         "base_salary=?, overtime_pay=?, deductions=?, allowances=?, net_salary=?, " +
                         "night_shift_incentive=?, is_night_shift=?, pdf_path=? WHERE id=?";
                 try (PreparedStatement ups = conn.prepareStatement(update)) {
-=======
-<<<<<<< HEAD
-                        "base_salary=?, overtime_pay=?, deductions=?, allowances=?, net_salary=?, pdf_path=? WHERE id=?";
-                try (PreparedStatement ups = connection.prepareStatement(update)) {
-=======
-                        "base_salary=?, overtime_pay=?, deductions=?, allowances=?, net_salary=?, " +
-                        "night_shift_incentive=?, is_night_shift=?, pdf_path=? WHERE id=?";
-                try (PreparedStatement ups = conn.prepareStatement(update)) {
->>>>>>> e7da53e (update fitur dan db)
->>>>>>> 0274c08
                     ups.setInt(1, payslip.getDaysPresent());
                     ups.setInt(2, payslip.getDaysAbsent());
                     ups.setDouble(3, payslip.getOvertimeHours());
@@ -269,21 +367,10 @@ public class DatabaseService {
         } catch (SQLException e) { e.printStackTrace(); }
 
         String insert = "INSERT INTO payslips (employee_id, period, days_present, days_absent, overtime_hours, " +
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-                "base_salary, overtime_pay, deductions, allowances, net_salary, pdf_path) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
-        try (PreparedStatement ps = connection.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
-=======
->>>>>>> 0274c08
                 "base_salary, overtime_pay, deductions, allowances, net_salary, night_shift_incentive, is_night_shift, pdf_path) " +
                 "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
-<<<<<<< HEAD
-=======
->>>>>>> e7da53e (update fitur dan db)
->>>>>>> 0274c08
             ps.setInt(1, payslip.getEmployeeId());
             ps.setString(2, payslip.getPeriod());
             ps.setInt(3, payslip.getDaysPresent());
@@ -341,11 +428,6 @@ public class DatabaseService {
         return periods;
     }
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
->>>>>>> 0274c08
     public List<PeriodSummary> getPayslipPeriodSummaries() {
         List<PeriodSummary> summaries = new ArrayList<>();
         String sql = "SELECT p.period, COUNT(p.id) as slip_count, SUM(p.net_salary) as total_salary, " +
@@ -383,10 +465,6 @@ public class DatabaseService {
         return summaries;
     }
 
-<<<<<<< HEAD
-=======
->>>>>>> e7da53e (update fitur dan db)
->>>>>>> 0274c08
     public Payslip getPayslipById(int id) {
         String sql = "SELECT p.*, e.name as emp_name, e.email as emp_email, e.employee_id as emp_code, " +
                 "e.position, e.department FROM payslips p " +

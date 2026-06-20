@@ -7,6 +7,7 @@ import com.slipgaji.view.LoginView;
 
 import javax.swing.*;
 import java.awt.*;
+import java.io.File;
 
 public class App {
     public static void main(String[] args) {
@@ -20,6 +21,18 @@ public class App {
                     "Fatal Error",
                     JOptionPane.ERROR_MESSAGE);
             System.exit(1);
+        }
+
+        // Register SF Pro font
+        try {
+            File sfPro = new File("/usr/share/fonts/sfpro/SF-Pro.ttf");
+            if (sfPro.exists()) {
+                Font f = Font.createFont(Font.TRUETYPE_FONT, sfPro);
+                GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+                ge.registerFont(f);
+            }
+        } catch (Exception e) {
+            System.err.println("SF Pro font registration skipped: " + e.getMessage());
         }
 
         try {

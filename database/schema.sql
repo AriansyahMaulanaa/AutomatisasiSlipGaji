@@ -1,3 +1,16 @@
+-- =============================================================
+-- SlipGaji Pro v1.1.0 - Database Schema
+-- Database : slipgaji_db
+-- Engine   : MariaDB / MySQL
+-- =============================================================
+
+CREATE DATABASE IF NOT EXISTS slipgaji_db
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
+USE slipgaji_db;
+
+-- ===================== USERS =====================
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(100) NOT NULL UNIQUE,
@@ -6,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ===================== EMPLOYEES =====================
 CREATE TABLE IF NOT EXISTS employees (
     id INT AUTO_INCREMENT PRIMARY KEY,
     employee_id VARCHAR(50) NOT NULL UNIQUE,
@@ -17,6 +31,7 @@ CREATE TABLE IF NOT EXISTS employees (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ===================== PAYSLIPS =====================
 CREATE TABLE IF NOT EXISTS payslips (
     id INT AUTO_INCREMENT PRIMARY KEY,
     employee_id INT NOT NULL,
@@ -31,12 +46,12 @@ CREATE TABLE IF NOT EXISTS payslips (
     net_salary DOUBLE DEFAULT 0,
     night_shift_incentive DOUBLE DEFAULT 0,
     is_night_shift TINYINT DEFAULT 0,
-
     pdf_path TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (employee_id) REFERENCES employees(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ===================== SEND HISTORY =====================
 CREATE TABLE IF NOT EXISTS send_history (
     id INT AUTO_INCREMENT PRIMARY KEY,
     payslip_id INT NOT NULL,
@@ -50,15 +65,20 @@ CREATE TABLE IF NOT EXISTS send_history (
     FOREIGN KEY (payslip_id) REFERENCES payslips(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ===================== SETTINGS =====================
 CREATE TABLE IF NOT EXISTS settings (
     `key` VARCHAR(100) PRIMARY KEY,
     `value` TEXT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ===================== SEED DATA =====================
+
+-- Users (password akan di-hash otomatis oleh aplikasi saat pertama login)
 INSERT IGNORE INTO users (username, password, role) VALUES
     ('spv', 'spv123', 'SPV'),
     ('manager', 'manager123', 'MANAGER');
 
+-- Default settings
 INSERT IGNORE INTO settings (`key`, `value`) VALUES
     ('smtp_host', 'smtp.gmail.com'),
     ('smtp_port', '587'),
@@ -66,21 +86,6 @@ INSERT IGNORE INTO settings (`key`, `value`) VALUES
     ('smtp_password', ''),
     ('company_name', 'CV. Mandiri Sukses Pratama'),
     ('company_address', 'Taman Royal, Jl. Pinus Niaga Center No.081, Banten 15119'),
-    ('overtime_rate_per_hour', '25000'),
-    ('daily_rate_divisor', '22'),
-    ('transport_allowance', '500000'),
-    ('meal_allowance', '300000'),
-    ('night_shift_rate', '50000'),
-    ('overtime_rate_per_hour_pkwt', '20000'),
-    ('daily_rate_divisor_pkwt', '22'),
-    ('transport_allowance_pkwt', '300000'),
-    ('meal_allowance_pkwt', '200000'),
-    ('night_shift_rate_pkwt', '40000'),
-    ('overtime_rate_per_hour_kantor', '30000'),
-    ('daily_rate_divisor_kantor', '22'),
-    ('transport_allowance_kantor', '400000'),
-    ('meal_allowance_kantor', '250000'),
-    ('night_shift_rate_kantor', '45000'),
     ('crewstore_overtime_rate_per_hour', '25000'),
     ('crewstore_daily_rate_divisor', '22'),
     ('crewstore_transport_allowance', '500000'),

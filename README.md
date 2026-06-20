@@ -1,6 +1,5 @@
 # Sistem Otomatisasi Slip Gaji Karyawan (SlipGajiPro)
 
-<<<<<<< HEAD
 SlipGajiPro merupakan aplikasi desktop berbasis Java yang digunakan untuk membuat dan mengirim slip gaji karyawan secara otomatis melalui email. Sistem ini dibuat untuk membantu proses penggajian agar lebih cepat, rapi, dan mengurangi kesalahan perhitungan manual.
 
 Aplikasi ini dibangun sebagai bagian dari tugas mata kuliah Rekayasa Perangkat Lunak (RPL) di Universitas Pamulang dan juga diimplementasikan dalam kegiatan Kerja Praktek.
@@ -42,7 +41,6 @@ Aplikasi ini memiliki beberapa fitur komprehensif, yaitu:
 ## Alur Kerja Sistem
 
 1. Manager melakukan login ke dalam sistem aplikasi.
-<<<<<<< HEAD
 2. Manager mengimport file Excel presensi karyawan.
 3. Sistem menghitung gaji kotor dan gaji bersih secara otomatis.
 4. Sistem membuat slip gaji dalam format PDF.

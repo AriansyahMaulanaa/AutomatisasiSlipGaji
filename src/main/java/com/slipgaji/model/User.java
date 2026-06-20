@@ -2,12 +2,12 @@ package com.slipgaji.model;
 
 public class User {
     public enum Role {
-        SUPERVISOR, GENERAL_MANAGER;
+        SPV, MANAGER;
 
         public String getDisplayName() {
             return switch (this) {
-                case SUPERVISOR -> "Supervisor";
-                case GENERAL_MANAGER -> "General Manager";
+                case SPV -> "SPV";
+                case MANAGER -> "Manager";
             };
         }
     }
@@ -35,7 +35,7 @@ public class User {
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
 
-    public boolean isGeneralManager() {
-        return role == Role.GENERAL_MANAGER;
+    public boolean isManager() {
+        return role == Role.MANAGER;
     }
 }

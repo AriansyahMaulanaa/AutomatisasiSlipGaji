@@ -1,6 +1,8 @@
 package com.slipgaji.service;
 
 import com.slipgaji.model.Employee;
+import com.slipgaji.util.ValidationUtil;
+import com.slipgaji.util.ValidationUtil.ValidationError;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
@@ -11,6 +13,24 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ExcelService {
+
+    public static class ImportResult {
+        private final List<Employee> employees;
+        private final List<ValidationError> errors;
+        private final List<ValidationError> warnings;
+
+        public ImportResult(List<Employee> employees, List<ValidationError> errors, List<ValidationError> warnings) {
+            this.employees = employees;
+            this.errors = errors;
+            this.warnings = warnings;
+        }
+
+        public List<Employee> getEmployees() { return employees; }
+        public List<ValidationError> getErrors() { return errors; }
+        public List<ValidationError> getWarnings() { return warnings; }
+        public boolean hasErrors() { return !errors.isEmpty(); }
+        public boolean hasWarnings() { return !warnings.isEmpty(); }
+    }
 
     /**
      * Expected Excel columns:
@@ -25,54 +45,191 @@ public class ExcelService {
      * I: Days Absent
      * J: Overtime Hours
      * K: Shift Malam (Y/Ya/1 = true, optional column)
+     * L: Tipe Karyawan (TETAP/PKWT/KANTOR, optional column)
      */
-    public List<Employee> readExcelFile(File file) throws IOException {
+    public ImportResult readExcelFile(File file) throws IOException {
         List<Employee> employees = new ArrayList<>();
+        List<ValidationError> errors = new ArrayList<>();
+        List<ValidationError> warnings = new ArrayList<>();
+
+        String fileName = file.getName().toLowerCase();
+        if (!fileName.endsWith(".xlsx")) {
+            throw new IOException("File bukan format Excel (.xlsx). File yang dipilih: " + file.getName());
+        }
 
         try (FileInputStream fis = new FileInputStream(file);
              Workbook workbook = new XSSFWorkbook(fis)) {
 
             Sheet sheet = workbook.getSheetAt(0);
-            int startRow = 1; // Skip header row
+            int startRow = 1;
+            int lastRow = sheet.getLastRowNum();
 
-            for (int i = startRow; i <= sheet.getLastRowNum(); i++) {
+            if (lastRow < 1) {
+                warnings.add(new ValidationError(0, "Sheet", "Tabel Excel kosong. Tidak ada data yang ditemukan."));
+                return new ImportResult(employees, errors, warnings);
+            }
+
+            for (int i = startRow; i <= lastRow; i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
 
-                // Skip empty rows by checking column 1 (ID Karyawan)
                 Cell idCell = row.getCell(1);
                 if (idCell == null || getCellStringValue(idCell).trim().isEmpty()) continue;
 
-                try {
-                    Employee emp = new Employee();
-                    emp.setEmployeeId(getCellStringValue(row.getCell(1))); // B
-                    emp.setName(getCellStringValue(row.getCell(2)));       // C
-                    emp.setEmail(getCellStringValue(row.getCell(3)));      // D
-                    emp.setPosition(getCellStringValue(row.getCell(4)));   // E
-                    emp.setDepartment(getCellStringValue(row.getCell(5))); // F
-                    emp.setBaseSalary(getCellNumericValue(row.getCell(6)));// G
-                    emp.setDaysPresent((int) getCellNumericValue(row.getCell(7)));  // H
-                    emp.setDaysAbsent((int) getCellNumericValue(row.getCell(8)));   // I
-                    emp.setOvertimeHours(getCellNumericValue(row.getCell(9)));      // J
+                int excelRow = i + 1;
+                boolean rowHasError = false;
 
-                    // K: Shift Malam (optional column)
-                    Cell nightShiftCell = row.getCell(10);
-                    emp.setNightShift(isNightShiftValue(nightShiftCell));
+                Employee emp = new Employee();
 
-                    // Validate required fields
-                    if (emp.getEmployeeId().isEmpty() || emp.getName().isEmpty() || emp.getEmail().isEmpty()) {
-                        System.err.println("Skipping row " + (i + 1) + ": Missing required fields");
-                        continue;
-                    }
-
-                    employees.add(emp);
-                } catch (Exception e) {
-                    System.err.println("Error parsing row " + (i + 1) + ": " + e.getMessage());
+                // B: Employee ID
+                String empId = getCellStringValue(row.getCell(1));
+                emp.setEmployeeId(empId);
+                if (empId.isEmpty()) {
+                    errors.add(new ValidationError(excelRow, "ID Karyawan", "ID Karyawan tidak boleh kosong"));
+                    rowHasError = true;
                 }
+
+                // C: Name
+                String name = getCellStringValue(row.getCell(2));
+                emp.setName(name);
+                if (name.isEmpty()) {
+                    errors.add(new ValidationError(excelRow, "Nama", "Nama tidak boleh kosong"));
+                    rowHasError = true;
+                } else if (name.matches("\\d+")) {
+                    errors.add(new ValidationError(excelRow, "Nama", "Nama tidak boleh hanya berisi angka"));
+                    rowHasError = true;
+                }
+
+                // D: Email
+                String email = getCellStringValue(row.getCell(3));
+                emp.setEmail(email);
+                if (email.isEmpty()) {
+                    errors.add(new ValidationError(excelRow, "Email", "Email tidak boleh kosong"));
+                    rowHasError = true;
+                } else if (!ValidationUtil.isValidEmail(email)) {
+                    errors.add(new ValidationError(excelRow, "Email", "Format email tidak valid: " + email));
+                    rowHasError = true;
+                }
+
+                // E: Position
+                String position = getCellStringValue(row.getCell(4));
+                if (position.isEmpty()) {
+                    warnings.add(new ValidationError(excelRow, "Posisi", "Posisi kosong"));
+                } else if (position.matches("\\d+")) {
+                    errors.add(new ValidationError(excelRow, "Posisi", "Posisi tidak boleh hanya berisi angka, ditemukan: " + position));
+                    rowHasError = true;
+                } else if (!position.equalsIgnoreCase("Crewstore")
+                        && !position.equalsIgnoreCase("Store Leader")
+                        && !position.equalsIgnoreCase("Manager")) {
+                    errors.add(new ValidationError(excelRow, "Posisi", "Posisi harus diisi Crewstore, Store Leader, atau Manager. Ditemukan: " + position));
+                    rowHasError = true;
+                }
+                emp.setPosition(position);
+
+                // F: Department
+                String department = getCellStringValue(row.getCell(5));
+                if (!department.isEmpty() && department.matches("\\d+")) {
+                    errors.add(new ValidationError(excelRow, "Departemen", "Departemen tidak boleh hanya berisi angka, ditemukan: " + department));
+                    rowHasError = true;
+                }
+                emp.setDepartment(department);
+
+                // G: Base Salary
+                Cell salaryCell = row.getCell(6);
+                String salaryRaw = getCellStringValue(salaryCell);
+                double baseSalary = 0;
+                if (salaryRaw.isEmpty()) {
+                    warnings.add(new ValidationError(excelRow, "Gaji Pokok", "Gaji Pokok kosong, diisi 0"));
+                } else if (!isCellNumeric(salaryCell)) {
+                    errors.add(new ValidationError(excelRow, "Gaji Pokok", "Gaji Pokok harus berisi angka, ditemukan: " + salaryRaw));
+                    rowHasError = true;
+                } else {
+                    baseSalary = getCellNumericValue(salaryCell);
+                    if (baseSalary <= 0) {
+                        warnings.add(new ValidationError(excelRow, "Gaji Pokok", "Gaji Pokok bernilai 0 atau kosong"));
+                    } else if (baseSalary > 1_000_000_000) {
+                        warnings.add(new ValidationError(excelRow, "Gaji Pokok", "Gaji Pokok terlalu besar: " + baseSalary));
+                    }
+                }
+                emp.setBaseSalary(baseSalary);
+
+                // H: Days Present
+                Cell presentCell = row.getCell(7);
+                String presentRaw = getCellStringValue(presentCell);
+                int daysPresent = 0;
+                if (presentRaw.isEmpty()) {
+                    warnings.add(new ValidationError(excelRow, "Hari Hadir", "Hari Hadir kosong, diisi 0"));
+                } else if (!isCellNumeric(presentCell)) {
+                    errors.add(new ValidationError(excelRow, "Hari Hadir", "Hari Hadir harus berisi angka, ditemukan: " + presentRaw));
+                    rowHasError = true;
+                } else {
+                    daysPresent = (int) getCellNumericValue(presentCell);
+                    if (daysPresent < 0 || daysPresent > 31) {
+                        errors.add(new ValidationError(excelRow, "Hari Hadir", "Hari Hadir tidak masuk akal (0-31), ditemukan: " + daysPresent));
+                        rowHasError = true;
+                    } else if (daysPresent == 0) {
+                        warnings.add(new ValidationError(excelRow, "Hari Hadir", "Hari Hadir bernilai 0"));
+                    }
+                }
+                emp.setDaysPresent(daysPresent);
+
+                // I: Days Absent
+                Cell absentCell = row.getCell(8);
+                String absentRaw = getCellStringValue(absentCell);
+                int daysAbsent = 0;
+                if (absentRaw.isEmpty()) {
+                    warnings.add(new ValidationError(excelRow, "Hari Absen", "Hari Absen kosong, diisi 0"));
+                } else if (!isCellNumeric(absentCell)) {
+                    errors.add(new ValidationError(excelRow, "Hari Absen", "Hari Absen harus berisi angka, ditemukan: " + absentRaw));
+                    rowHasError = true;
+                } else {
+                    daysAbsent = (int) getCellNumericValue(absentCell);
+                    if (daysAbsent < 0 || daysAbsent > 31) {
+                        errors.add(new ValidationError(excelRow, "Hari Absen", "Hari Absen tidak masuk akal (0-31), ditemukan: " + daysAbsent));
+                        rowHasError = true;
+                    } else if (daysAbsent == 0) {
+                        warnings.add(new ValidationError(excelRow, "Hari Absen", "Hari Absen bernilai 0"));
+                    }
+                }
+                emp.setDaysAbsent(daysAbsent);
+
+                // J: Overtime Hours
+                Cell overtimeCell = row.getCell(9);
+                String overtimeRaw = getCellStringValue(overtimeCell);
+                double overtimeHours = 0;
+                if (overtimeRaw.isEmpty()) {
+                    warnings.add(new ValidationError(excelRow, "Jam Lembur", "Jam Lembur kosong, diisi 0"));
+                } else if (!isCellNumeric(overtimeCell)) {
+                    errors.add(new ValidationError(excelRow, "Jam Lembur", "Jam Lembur harus berisi angka, ditemukan: " + overtimeRaw));
+                    rowHasError = true;
+                } else {
+                    overtimeHours = getCellNumericValue(overtimeCell);
+                    if (overtimeHours < 0 || overtimeHours > 240) {
+                        warnings.add(new ValidationError(excelRow, "Jam Lembur", "Jam Lembur tidak wajar: " + overtimeHours));
+                    } else if (overtimeHours == 0) {
+                        warnings.add(new ValidationError(excelRow, "Jam Lembur", "Jam Lembur bernilai 0"));
+                    }
+                }
+                emp.setOvertimeHours(overtimeHours);
+
+                // K: Shift Malam (optional)
+                Cell nightShiftCell = row.getCell(10);
+                emp.setNightShift(isNightShiftValue(nightShiftCell));
+
+                // L: Tipe Karyawan (optional, diabaikan — parameter berdasarkan Posisi)
+                // column 11 not processed
+
+                if (!rowHasError) {
+                    employees.add(emp);
+                }
+            }
+
+            if (employees.isEmpty() && errors.isEmpty()) {
+                warnings.add(new ValidationError(0, "Data", "Tidak ada data karyawan yang valid ditemukan dalam file."));
             }
         }
 
-        return employees;
+        return new ImportResult(employees, errors, warnings);
     }
 
     /**
@@ -84,6 +241,33 @@ public class ExcelService {
         String val = getCellStringValue(cell).trim().toLowerCase();
         return val.equals("y") || val.equals("ya") || val.equals("yes")
                 || val.equals("1") || val.equals("true");
+    }
+
+    /**
+     * Check if a cell contains a numeric value (either NUMERIC type or parseable string)
+     */
+    private boolean isCellNumeric(Cell cell) {
+        if (cell == null) return false;
+        if (cell.getCellType() == CellType.NUMERIC) return true;
+        if (cell.getCellType() == CellType.STRING) {
+            String val = cell.getStringCellValue().trim().replace(",", "").replace(".", "");
+            if (val.isEmpty()) return false;
+            try {
+                Double.parseDouble(val);
+                return true;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        if (cell.getCellType() == CellType.FORMULA) {
+            try {
+                cell.getNumericCellValue();
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+        return false;
     }
 
     private String getCellStringValue(Cell cell) {

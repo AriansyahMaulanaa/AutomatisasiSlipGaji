@@ -12,6 +12,8 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
 
+import java.awt.Dialog.ModalityType;
+
 public class UIHelper {
 
     private static final DecimalFormat CURRENCY_FORMAT;
@@ -164,6 +166,75 @@ public class UIHelper {
         // Trigger the custom paint
         button.putClientProperty("sidebar.active", active);
         button.repaint();
+    }
+
+    // ======================== TOGGLE BUTTONS ========================
+
+    public static JToggleButton createStyledToggleButton(String text, boolean selected) {
+        JToggleButton btn = new JToggleButton(text) {
+            private float hoverAlpha = 0f;
+
+            {
+                addMouseListener(new MouseAdapter() {
+                    @Override
+                    public void mouseEntered(MouseEvent e) {
+                        if (!isSelected()) {
+                            hoverAlpha = 0.12f;
+                            repaint();
+                        }
+                    }
+                    @Override
+                    public void mouseExited(MouseEvent e) {
+                        hoverAlpha = 0f;
+                        repaint();
+                    }
+                });
+            }
+
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                int w = getWidth();
+                int h = getHeight();
+                int arc = Constants.BUTTON_RADIUS * 2;
+
+                if (isSelected()) {
+                    g2.setColor(Constants.PRIMARY);
+                    g2.fill(new RoundRectangle2D.Double(0, 0, w, h, arc, arc));
+                } else {
+                    g2.setColor(new Color(243, 244, 246));
+                    g2.fill(new RoundRectangle2D.Double(0, 0, w, h, arc, arc));
+                    g2.setColor(Constants.BORDER_COLOR);
+                    g2.draw(new RoundRectangle2D.Double(0, 0, w - 1, h - 1, arc, arc));
+                }
+
+                if (hoverAlpha > 0) {
+                    g2.setColor(new Color(0, 0, 0, (int)(hoverAlpha * 255)));
+                    g2.fill(new RoundRectangle2D.Double(0, 0, w, h, arc, arc));
+                }
+
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btn.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 13));
+        btn.setForeground(selected ? Color.WHITE : Constants.TEXT_SECONDARY);
+        btn.setBorderPainted(false);
+        btn.setContentAreaFilled(false);
+        btn.setFocusPainted(false);
+        btn.setOpaque(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setBorder(new EmptyBorder(10, 20, 10, 20));
+        btn.setSelected(selected);
+
+        btn.addItemListener(e -> {
+            btn.setForeground(btn.isSelected() ? Color.WHITE : Constants.TEXT_SECONDARY);
+            btn.repaint();
+        });
+
+        return btn;
     }
 
     // ======================== CARDS ========================
@@ -335,23 +406,19 @@ public class UIHelper {
                 int h = getHeight();
                 int r = Constants.CARD_RADIUS * 2;
 
-                // Shadow
                 for (int i = 3; i > 0; i--) {
                     g2.setColor(new Color(0, 0, 0, 6 * (4 - i)));
                     g2.fill(new RoundRectangle2D.Double(i, i + 1, w - i * 2, h - i * 2 + 1, r, r));
                 }
 
-                // Background
                 g2.setColor(Constants.BG_CARD);
                 g2.fill(new RoundRectangle2D.Double(0, 0, w, h, r, r));
 
-                // Accent strip (left side)
                 g2.setClip(new RoundRectangle2D.Double(0, 0, w, h, r, r));
                 g2.setColor(accentColor);
-                g2.fillRect(0, 0, 5, h);
+                g2.fillRect(0, 0, 6, h);
                 g2.setClip(null);
 
-                // Border
                 g2.setColor(Constants.BORDER_COLOR);
                 g2.draw(new RoundRectangle2D.Double(0, 0, w - 1, h - 1, r, r));
 
@@ -359,15 +426,15 @@ public class UIHelper {
                 super.paintComponent(g);
             }
         };
-        card.setText("<html><div style='padding:8px'>"
-                + "<span style='color:#6B7280;font-size:11px'>" + label + "</span><br>"
-                + "<span style='color:#111827;font-size:22px'><b>" + value + "</b></span>"
+        card.setText("<html><div style='padding:4px 6px'>"
+                + "<span style='color:#111827;font-size:22px;font-family:" + Constants.FONT_FAMILY + "'><b>" + value + "</b></span><br>"
+                + "<span style='color:#6B7280;font-size:11px;font-family:" + Constants.FONT_FAMILY + "'>" + label + "</span>"
                 + "</div></html>");
         card.setFont(Constants.FONT_BODY);
         card.setForeground(Constants.TEXT_PRIMARY);
         card.setOpaque(false);
-        card.setBorder(new EmptyBorder(14, 20, 14, 20));
-        card.setPreferredSize(new Dimension(200, 90));
+        card.setBorder(new EmptyBorder(10, 16, 10, 16));
+        card.setPreferredSize(new Dimension(200, 80));
         return card;
     }
 
@@ -384,5 +451,107 @@ public class UIHelper {
     public static boolean showConfirm(Component parent, String message) {
         return JOptionPane.showConfirmDialog(parent, message, "Konfirmasi",
                 JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION;
+    }
+
+    // ======================== VALIDATION DIALOG ========================
+
+    public static void showValidationDialog(Component parent, String title,
+            java.util.List<ValidationUtil.ValidationError> items, boolean isError) {
+        Window owner = parent != null ? SwingUtilities.getWindowAncestor(parent) : null;
+        JDialog dialog = new JDialog(owner, title, ModalityType.APPLICATION_MODAL);
+        dialog.setSize(560, 400);
+        dialog.setLocationRelativeTo(owner);
+        dialog.setResizable(false);
+
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBackground(Constants.BG_CARD);
+
+        Color headerColor = isError ? Constants.ACCENT_DANGER : Constants.ACCENT_WARN;
+        String icon = isError ? "✕" : "⚠";
+        String typeLabel = isError ? "Error Validasi" : "Peringatan Validasi";
+
+        JPanel headerPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(headerColor);
+                g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), 12, 12));
+                g2.fillRect(0, getHeight() - 12, getWidth(), 12);
+                g2.dispose();
+            }
+        };
+        headerPanel.setOpaque(false);
+        headerPanel.setBorder(new EmptyBorder(16, 20, 16, 20));
+        headerPanel.setLayout(new BorderLayout());
+
+        JLabel headerIcon = new JLabel(" " + icon + "  " + items.size() + " " + typeLabel);
+        headerIcon.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 15));
+        headerIcon.setForeground(Color.WHITE);
+        headerPanel.add(headerIcon, BorderLayout.WEST);
+
+        mainPanel.add(headerPanel, BorderLayout.NORTH);
+
+        JPanel listPanel = new JPanel();
+        listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
+        listPanel.setBackground(Constants.BG_CARD);
+        listPanel.setBorder(new EmptyBorder(12, 16, 12, 16));
+
+        int maxShow = 50;
+        int count = 0;
+        for (ValidationUtil.ValidationError ve : items) {
+            if (count >= maxShow) {
+                JLabel more = new JLabel("... dan " + (items.size() - maxShow) + " lainnya");
+                more.setFont(new Font(Constants.FONT_FAMILY, Font.ITALIC, 12));
+                more.setForeground(Constants.TEXT_SECONDARY);
+                more.setBorder(new EmptyBorder(4, 8, 4, 8));
+                listPanel.add(more);
+                break;
+            }
+            Color textColor = isError ? Constants.ACCENT_DANGER : Constants.ACCENT_WARN;
+            String prefix = isError ? "●" : "◆";
+            JLabel item = new JLabel("<html><span style='color:" + colorToHex(textColor) + ";'>" + prefix + "</span> "
+                    + escapeHtml(ve.toString()) + "</html>");
+            item.setFont(new Font(Constants.FONT_FAMILY, Font.PLAIN, 12));
+            item.setForeground(Constants.TEXT_PRIMARY);
+            item.setBorder(new EmptyBorder(3, 4, 3, 4));
+            listPanel.add(item);
+            count++;
+        }
+
+        JScrollPane scrollPane = new JScrollPane(listPanel);
+        scrollPane.setBorder(BorderFactory.createLineBorder(Constants.BORDER_COLOR));
+        scrollPane.getViewport().setBackground(Constants.BG_CARD);
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+
+        JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 8));
+        footerPanel.setBackground(Constants.BG_CARD);
+        JButton closeBtn = new JButton("Tutup");
+        closeBtn.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 13));
+        closeBtn.setForeground(Color.WHITE);
+        closeBtn.setBackground(Constants.PRIMARY);
+        closeBtn.setBorderPainted(false);
+        closeBtn.setFocusPainted(false);
+        closeBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        closeBtn.setBorder(new EmptyBorder(8, 24, 8, 24));
+        closeBtn.addActionListener(e -> dialog.dispose());
+        footerPanel.add(closeBtn);
+        mainPanel.add(footerPanel, BorderLayout.SOUTH);
+
+        dialog.setContentPane(mainPanel);
+        dialog.setVisible(true);
+    }
+
+    private static String colorToHex(Color c) {
+        return String.format("#%02x%02x%02x", c.getRed(), c.getGreen(), c.getBlue());
+    }
+
+    private static String escapeHtml(String text) {
+        if (text == null) return "";
+        return text.replace("&", "&amp;")
+                   .replace("<", "&lt;")
+                   .replace(">", "&gt;")
+                   .replace("\"", "&quot;")
+                   .replace("'", "&#39;");
     }
 }

@@ -4,6 +4,7 @@ import com.slipgaji.model.Employee;
 import com.slipgaji.model.Payslip;
 import com.slipgaji.service.DatabaseService;
 import com.slipgaji.service.ExcelService;
+import com.slipgaji.service.ExcelService.ImportResult;
 import com.slipgaji.service.SalaryCalculator;
 
 import java.io.File;
@@ -20,35 +21,57 @@ public class ImportController {
         this.db = DatabaseService.getInstance();
     }
 
-    public List<Employee> readExcel(File file) throws IOException {
+    public ImportResult readExcel(File file) throws IOException {
         return excelService.readExcelFile(file);
     }
 
     public List<Payslip> processAndSave(List<Employee> employees, String period) {
         List<Payslip> payslips = new ArrayList<>();
 
-        double overtimeRate = db.getSettingDouble("overtime_rate_per_hour", 25000);
-        int divisor = (int) db.getSettingDouble("daily_rate_divisor", 22);
-        double transport = db.getSettingDouble("transport_allowance", 500000);
-        double meal = db.getSettingDouble("meal_allowance", 300000);
-        double nightShiftRate = db.getSettingDouble("night_shift_rate", 50000);
-
-        SalaryCalculator calculator = new SalaryCalculator(overtimeRate, divisor, transport, meal, nightShiftRate);
-
         for (Employee emp : employees) {
-            // Save/update employee
+            String position = emp.getPosition() != null ? emp.getPosition() : "Crewstore";
+
+            double overtimeRate;
+            int divisor;
+            double transport;
+            double meal;
+            double nightShiftRate;
+
+            switch (position.toUpperCase()) {
+                case "STORE LEADER":
+                    overtimeRate = db.getSettingDouble("store_leader_overtime_rate_per_hour", 30000);
+                    divisor = (int) db.getSettingDouble("store_leader_daily_rate_divisor", 22);
+                    transport = db.getSettingDouble("store_leader_transport_allowance", 600000);
+                    meal = db.getSettingDouble("store_leader_meal_allowance", 350000);
+                    nightShiftRate = db.getSettingDouble("store_leader_night_shift_rate", 55000);
+                    break;
+                case "MANAGER":
+                    overtimeRate = db.getSettingDouble("manager_overtime_rate_per_hour", 35000);
+                    divisor = (int) db.getSettingDouble("manager_daily_rate_divisor", 22);
+                    transport = db.getSettingDouble("manager_transport_allowance", 700000);
+                    meal = db.getSettingDouble("manager_meal_allowance", 400000);
+                    nightShiftRate = db.getSettingDouble("manager_night_shift_rate", 60000);
+                    break;
+                default: // Crewstore
+                    overtimeRate = db.getSettingDouble("crewstore_overtime_rate_per_hour", 25000);
+                    divisor = (int) db.getSettingDouble("crewstore_daily_rate_divisor", 22);
+                    transport = db.getSettingDouble("crewstore_transport_allowance", 500000);
+                    meal = db.getSettingDouble("crewstore_meal_allowance", 300000);
+                    nightShiftRate = db.getSettingDouble("crewstore_night_shift_rate", 50000);
+                    break;
+            }
+
+            SalaryCalculator calculator = new SalaryCalculator(overtimeRate, divisor, transport, meal, nightShiftRate);
+
             int empDbId = db.saveOrUpdateEmployee(emp);
             emp.setId(empDbId);
 
-            // Calculate salary (includes night shift if applicable)
             Payslip payslip = calculator.calculate(emp, period);
             payslip.setEmployeeId(empDbId);
 
-            // Save payslip
             int payslipId = db.savePayslip(payslip);
             payslip.setId(payslipId);
 
-            // Set display fields
             payslip.setEmployeeName(emp.getName());
             payslip.setEmployeeEmail(emp.getEmail());
             payslip.setEmployeeIdCode(emp.getEmployeeId());
