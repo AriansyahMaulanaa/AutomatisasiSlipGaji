@@ -1,9 +1,15 @@
+-- =============================================================
+-- SlipGaji Pro v1.1.0 - Database Schema (executed by app on startup)
+-- Database : slipgaji_db
+-- =============================================================
+
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     role VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_users_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS employees (
@@ -14,7 +20,10 @@ CREATE TABLE IF NOT EXISTS employees (
     position VARCHAR(100),
     department VARCHAR(100),
     base_salary DOUBLE DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    employment_type VARCHAR(20) DEFAULT 'TETAP',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_employees_department (department),
+    INDEX idx_employees_position (position)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS payslips (
@@ -31,10 +40,12 @@ CREATE TABLE IF NOT EXISTS payslips (
     net_salary DOUBLE DEFAULT 0,
     night_shift_incentive DOUBLE DEFAULT 0,
     is_night_shift TINYINT DEFAULT 0,
-
     pdf_path TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (employee_id) REFERENCES employees(id)
+    INDEX idx_payslips_employee (employee_id),
+    INDEX idx_payslips_period (period),
+    INDEX idx_payslips_employee_period (employee_id, period),
+    FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS send_history (
@@ -47,7 +58,11 @@ CREATE TABLE IF NOT EXISTS send_history (
     status ENUM('SUCCESS','FAILED'),
     error_message TEXT,
     sent_by VARCHAR(100),
-    FOREIGN KEY (payslip_id) REFERENCES payslips(id)
+    INDEX idx_send_history_payslip (payslip_id),
+    INDEX idx_send_history_period (period),
+    INDEX idx_send_history_status (status),
+    INDEX idx_send_history_period_status (period, status),
+    FOREIGN KEY (payslip_id) REFERENCES payslips(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS settings (
@@ -55,6 +70,13 @@ CREATE TABLE IF NOT EXISTS settings (
     `value` TEXT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Schema version tracking (created by app, but declared here for completeness)
+CREATE TABLE IF NOT EXISTS schema_version (
+    version INT PRIMARY KEY,
+    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Seed data
 INSERT IGNORE INTO users (username, password, role) VALUES
     ('spv', 'spv123', 'SPV'),
     ('manager', 'manager123', 'MANAGER');

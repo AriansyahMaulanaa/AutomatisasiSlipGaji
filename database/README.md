@@ -90,7 +90,18 @@ Atau buka project di **VS Code** → klik tombol Run (App) di bagian atas.
 ## Struktur Tabel
 
 - **users** — Data login pengguna (SPV / Manager)
-- **employees** — Data karyawan hasil import
-- **payslips** — Data slip gaji per periode
+- **employees** — Data karyawan hasil import, dilengkapi `employment_type` (TETAP/PKWT/KANTOR)
+- **payslips** — Data slip gaji per periode, dilengkapi `night_shift_incentive` & `is_night_shift`
 - **send_history** — Riwayat pengiriman email
-- **settings** — Konfigurasi aplikasi (SMTP, parameter gaji, dll)
+- **settings** — Konfigurasi aplikasi (SMTP, parameter gaji per employment type)
+- **schema_version** — Tracking migrasi database (dikelola otomatis oleh aplikasi)
+
+> **Catatan:** Schema ini sudah **lengkap dan siap pakai**. Semua kolom yang dibutuhkan oleh aplikasi (termasuk `employment_type`, `night_shift_incentive`, `is_night_shift`) sudah ada langsung di CREATE TABLE — tidak perlu migrasi tambahan untuk instalasi baru.
+
+## Index
+
+Beberapa index telah ditambahkan untuk optimasi query:
+- `idx_payslips_period` — mempercepat filter berdasarkan periode
+- `idx_payslips_employee_period` — mempercepat pencarian slip per employee+periode
+- `idx_send_history_period_status` — mempercepat hitung email sukses/gagal per periode
+- Foreign key dengan `ON DELETE CASCADE` — data terkait otomatis terhapus
