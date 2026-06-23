@@ -133,19 +133,17 @@ public class PayslipPanel extends JPanel {
         List<PeriodSummary> summaries = DatabaseService.getInstance().getPayslipPeriodSummaries();
         
         cardsWrapper.removeAll();
-        int MAX_CARDS = 3; 
-
-        int cardsToShow = Math.min(summaries.size(), MAX_CARDS);
-        int emptySlots = Math.max(1, MAX_CARDS - cardsToShow); 
         
-        cardsWrapper.setLayout(new GridLayout(1, cardsToShow + emptySlots, 16, 0));
-        cardsWrapper.setPreferredSize(new Dimension(0, 100)); // Minimalist height constraint
+        int cardCount = Math.max(summaries.size(), 1);
+        cardsWrapper.setLayout(new GridLayout(1, cardCount, 16, 0));
+        cardsWrapper.setPreferredSize(new Dimension(0, 100));
         
-        for (int i = 0; i < cardsToShow; i++) {
-            cardsWrapper.add(createPeriodCard(summaries.get(i)));
-        }
-        for (int i = 0; i < emptySlots; i++) {
+        if (summaries.isEmpty()) {
             cardsWrapper.add(createEmptyState());
+        } else {
+            for (PeriodSummary s : summaries) {
+                cardsWrapper.add(createPeriodCard(s));
+            }
         }
 
         cardsWrapper.revalidate();
@@ -202,7 +200,7 @@ public class PayslipPanel extends JPanel {
         int pending = summary.getSlipCount() - summary.getEmailSentCount();
         String body = "<html><span style='color:#6B7280;font-size:11px'>" + summary.getSlipCount() + " Slip Karyawan<br>" 
                       + UIHelper.formatCurrency(summary.getTotalSalary()) + "<br>"
-                      + (pending == 0 && summary.getSlipCount() > 0 ? "<span style='color:#10B981'>✅ Semua Terkirim</span>" : "<span style='color:#F59E0B'>⧗ " + pending + " Pending</span>")
+                      + (pending == 0 && summary.getSlipCount() > 0 ? "<span style='color:#10B981'>Terkirim</span>" : "<span style='color:#F59E0B'>Pending: " + pending + "</span>")
                       + "</span></html>";
         JLabel detail = new JLabel(body);
         card.add(detail, BorderLayout.CENTER);
@@ -372,7 +370,7 @@ public class PayslipPanel extends JPanel {
                     @Override public void onProgress(int current, int total, String name, String status, String error) {
                         publish(current);
                         SwingUtilities.invokeLater(() -> {
-                            String icon = status.equals("SUCCESS") ? "✅" : "❌";
+                            String icon = status.equals("SUCCESS") ? "OK" : "FAIL";
                             statusLabel.setText(icon + " " + name + " (" + current + "/" + total + ")");
                         });
                     }

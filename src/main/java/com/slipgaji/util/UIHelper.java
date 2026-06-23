@@ -467,7 +467,7 @@ public class UIHelper {
         mainPanel.setBackground(Constants.BG_CARD);
 
         Color headerColor = isError ? Constants.ACCENT_DANGER : Constants.ACCENT_WARN;
-        String icon = isError ? "✕" : "⚠";
+        String icon = isError ? "[X]" : "[!]";
         String typeLabel = isError ? "Error Validasi" : "Peringatan Validasi";
 
         JPanel headerPanel = new JPanel() {
@@ -509,7 +509,7 @@ public class UIHelper {
                 break;
             }
             Color textColor = isError ? Constants.ACCENT_DANGER : Constants.ACCENT_WARN;
-            String prefix = isError ? "●" : "◆";
+            String prefix = isError ? "-" : "-";
             JLabel item = new JLabel("<html><span style='color:" + colorToHex(textColor) + ";'>" + prefix + "</span> "
                     + escapeHtml(ve.toString()) + "</html>");
             item.setFont(new Font(Constants.FONT_FAMILY, Font.PLAIN, 12));

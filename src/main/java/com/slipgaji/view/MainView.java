@@ -79,7 +79,7 @@ public class MainView extends JFrame {
         contentPanel.setBorder(new EmptyBorder(4, 4, 4, 4));
 
 
-        dashboardPanel = new DashboardPanel();
+        dashboardPanel = new DashboardPanel(this);
         importPanel = new ImportPanel(this);
         payslipPanel = new PayslipPanel();
         historyPanel = new HistoryPanel();
@@ -166,7 +166,7 @@ public class MainView extends JFrame {
         addMenuItem(sidebar, "dashboard", "Dashboard");
         addMenuItem(sidebar, "import", "Import Data");
         addMenuItem(sidebar, "payslip", "Slip Gaji");
-        addMenuItem(sidebar, "history", "Histori Pengiriman");
+        addMenuItem(sidebar, "history", "Histori");
 
         if (AuthController.isManager()) {
             sidebar.add(Box.createVerticalStrut(16));

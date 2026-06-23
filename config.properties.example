@@ -1,0 +1,22 @@
+#SlipGaji Pro - Local Configurations (EXAMPLE)
+# Copy this file to config.properties and fill in your credentials
+# config.properties is in .gitignore so it won't be committed
+
+# Database MariaDB
+# db_host=localhost
+# db_port=3306
+# db_name=slipgaji_db
+# db_user=root
+# db_password=your_password_here
+
+# SMTP Email (Gmail example)
+# smtp_host=smtp.gmail.com
+# smtp_port=587
+# smtp_email=your_email@gmail.com
+# smtp_password=your_app_password_here
+
+# SMTP for other providers
+# smtp_host=smtp.mailtrap.io
+# smtp_port=2525
+# smtp_email=your_email@mailtrap.io
+# smtp_password=your_password

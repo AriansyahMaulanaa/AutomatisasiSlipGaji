@@ -3,6 +3,7 @@ package com.slipgaji.service;
 import jakarta.mail.*;
 import jakarta.mail.internet.*;
 
+import com.slipgaji.util.Constants;
 import java.io.File;
 import java.util.Properties;
 
@@ -41,37 +42,43 @@ public class EmailService {
         message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipientEmail));
         message.setSubject("Slip Gaji - Periode " + formatPeriod(period) + " | " + recipientName);
 
-        // Body text
+        String periodFormatted = formatPeriod(period);
+
         String bodyHtml = """
                 <html>
-                <body style="font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; max-width: 600px; margin: 0 auto;">
-                    <div style="background: linear-gradient(135deg, #4f46e5, #7c3aed); padding: 24px; border-radius: 8px 8px 0 0;">
-                        <h2 style="color: white; margin: 0;">Slip Gaji Karyawan</h2>
-                        <p style="color: #c7d2fe; margin: 4px 0 0 0;">Periode: %s</p>
+                <body style="font-family: 'Segoe UI', Arial, sans-serif; color: #334155; max-width: 600px; margin: 0 auto;">
+                    <div style="background: linear-gradient(135deg, #2563EB, #3B82F6); padding: 28px; border-radius: 10px 10px 0 0;">
+                        <h2 style="color: white; margin: 0; font-size: 20px;">Slip Gaji Karyawan</h2>
+                        <p style="color: #BFDBFE; margin: 6px 0 0 0; font-size: 13px;">Periode: %s</p>
                     </div>
-                    <div style="background: #f8fafc; padding: 24px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px;">
-                        <p>Yth. <strong>%s</strong>,</p>
-                        <p>Bersama email ini kami lampirkan slip gaji Anda untuk periode <strong>%s</strong>.</p>
-                        <p>Silakan buka file PDF terlampir untuk melihat rincian gaji Anda.</p>
-                        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-                        <p style="color: #64748b; font-size: 12px;">
-                            Email ini dikirim secara otomatis oleh sistem SlipGaji Pro.<br>
-                            Jika ada pertanyaan, silakan hubungi HRD.
+                    <div style="background: #F8FAFC; padding: 28px; border: 1px solid #E2E8F0; border-top: none; border-radius: 0 0 10px 10px;">
+                        <p style="margin: 0 0 16px 0;">Yth. <strong>%s</strong>,</p>
+                        <p style="margin: 0 0 12px 0;">Bersama email ini kami sampaikan slip gaji Anda untuk periode <strong>%s</strong>.</p>
+                        <p style="margin: 0 0 12px 0;">Silakan buka file PDF terlampir untuk melihat rincian gaji Anda secara lengkap, meliputi:</p>
+                        <ul style="color: #475569; padding-left: 20px; margin: 0 0 20px 0; line-height: 1.8;">
+                            <li>Gaji pokok dan tunjangan</li>
+                            <li>Perhitungan lembur dan insentif</li>
+                            <li>Potongan absensi (jika ada)</li>
+                            <li>Total gaji bersih yang diterima</li>
+                        </ul>
+                        <hr style="border: none; border-top: 1px solid #E2E8F0; margin: 20px 0;">
+                        <p style="color: #64748B; font-size: 12px; margin: 0 0 4px 0;">
+                            Email ini dikirim secara otomatis oleh sistem %s.
+                        </p>
+                        <p style="color: #64748B; font-size: 12px; margin: 0;">
+                            Jika ada pertanyaan, silakan hubungi bagian HRD atau keuangan perusahaan.
                         </p>
                     </div>
                 </body>
                 </html>
-                """.formatted(formatPeriod(period), recipientName, formatPeriod(period));
+                """.formatted(periodFormatted, recipientName, periodFormatted, Constants.APP_NAME);
 
-        // Multipart message
         MimeMultipart multipart = new MimeMultipart();
 
-        // HTML body part
         MimeBodyPart htmlPart = new MimeBodyPart();
         htmlPart.setContent(bodyHtml, "text/html; charset=utf-8");
         multipart.addBodyPart(htmlPart);
 
-        // PDF attachment
         if (pdfPath != null && new File(pdfPath).exists()) {
             try {
                 MimeBodyPart attachmentPart = new MimeBodyPart();

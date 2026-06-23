@@ -135,7 +135,7 @@ public class ImportPanel extends JPanel {
                 return;
             }
 
-            fileLabel.setText("📎 " + file.getName());
+            fileLabel.setText("File: " + file.getName());
             fileLabel.setForeground(Constants.ACCENT);
 
             try {

@@ -61,6 +61,7 @@ public class DatabaseService {
 
         // Execute init SQL script
         executeSqlScript();
+        ensureSchemaVersion();
         runMigrations();
     }
 
@@ -68,7 +69,7 @@ public class DatabaseService {
         try (InputStream is = getClass().getResourceAsStream("/db/init.sql")) {
             if (is == null) throw new IOException("init.sql not found in resources");
             String sql = new String(is.readAllBytes());
-            // Split on semicolons, but be careful with statements
+            // Split by semicolons — safe for this script (no stored procs or quoted semicolons)
             String[] statements = sql.split(";");
             try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
                 for (String s : statements) {
@@ -82,57 +83,91 @@ public class DatabaseService {
     }
 
     /**
-     * Run schema migrations for existing databases that don't have new columns.
+     * Create schema version tracking table and ensure version 1 is recorded.
      */
-    private void runMigrations() {
-        // Add night_shift_incentive column if missing
-        addColumnIfNotExists("payslips", "night_shift_incentive", "DOUBLE DEFAULT 0");
-        // Add is_night_shift column if missing
-        addColumnIfNotExists("payslips", "is_night_shift", "TINYINT DEFAULT 0");
-        // Add employment_type column if missing
-        addColumnIfNotExists("employees", "employment_type", "VARCHAR(20) DEFAULT 'TETAP'");
-        // Add night_shift_rate setting if missing
+    private void ensureSchemaVersion() {
+        try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
+            stmt.execute(
+                "CREATE TABLE IF NOT EXISTS schema_version (" +
+                "    version INT PRIMARY KEY," +
+                "    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Check if a migration version has been applied.
+     */
+    private boolean isMigrationApplied(int version) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement("SELECT 1 FROM schema_version WHERE version = ?")) {
+            ps.setInt(1, version);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Mark a migration version as applied.
+     */
+    private void markMigrationApplied(int version) {
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(
-                "INSERT IGNORE INTO settings (`key`, `value`) VALUES ('night_shift_rate', '50000')")) {
+                "INSERT IGNORE INTO schema_version (version) VALUES (?)")) {
+            ps.setInt(1, version);
             ps.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        // Insert default PKWT settings if missing
-        insertSettingIfMissing("overtime_rate_per_hour_pkwt", "20000");
-        insertSettingIfMissing("daily_rate_divisor_pkwt", "22");
-        insertSettingIfMissing("transport_allowance_pkwt", "300000");
-        insertSettingIfMissing("meal_allowance_pkwt", "200000");
-        insertSettingIfMissing("night_shift_rate_pkwt", "40000");
-        // Insert default Kantor settings if missing
-        insertSettingIfMissing("overtime_rate_per_hour_kantor", "30000");
-        insertSettingIfMissing("daily_rate_divisor_kantor", "22");
-        insertSettingIfMissing("transport_allowance_kantor", "400000");
-        insertSettingIfMissing("meal_allowance_kantor", "250000");
-        insertSettingIfMissing("night_shift_rate_kantor", "45000");
-        // Insert default Crewstore settings if missing
-        insertSettingIfMissing("crewstore_overtime_rate_per_hour", "25000");
-        insertSettingIfMissing("crewstore_daily_rate_divisor", "22");
-        insertSettingIfMissing("crewstore_transport_allowance", "500000");
-        insertSettingIfMissing("crewstore_meal_allowance", "300000");
-        insertSettingIfMissing("crewstore_night_shift_rate", "50000");
-        // Insert default Store Leader settings if missing
-        insertSettingIfMissing("store_leader_overtime_rate_per_hour", "30000");
-        insertSettingIfMissing("store_leader_daily_rate_divisor", "22");
-        insertSettingIfMissing("store_leader_transport_allowance", "600000");
-        insertSettingIfMissing("store_leader_meal_allowance", "350000");
-        insertSettingIfMissing("store_leader_night_shift_rate", "55000");
-        // Insert default Manager settings if missing
-        insertSettingIfMissing("manager_overtime_rate_per_hour", "35000");
-        insertSettingIfMissing("manager_daily_rate_divisor", "22");
-        insertSettingIfMissing("manager_transport_allowance", "700000");
-        insertSettingIfMissing("manager_meal_allowance", "400000");
-        insertSettingIfMissing("manager_night_shift_rate", "60000");
-        // Migrate old role names to new enum values
-        migrateRoles();
-        // Hash existing plain-text passwords
-        migratePasswords();
+    }
+
+    /**
+     * Run schema migrations for existing databases that don't have new columns.
+     */
+    private void runMigrations() {
+        // ===== V1: Initial columns and settings =====
+        if (!isMigrationApplied(1)) {
+            addColumnIfNotExists("payslips", "night_shift_incentive", "DOUBLE DEFAULT 0");
+            addColumnIfNotExists("payslips", "is_night_shift", "TINYINT DEFAULT 0");
+            addColumnIfNotExists("employees", "employment_type", "VARCHAR(20) DEFAULT 'TETAP'");
+
+            insertSettingIfMissing("night_shift_rate", "50000");
+            insertSettingIfMissing("overtime_rate_per_hour_pkwt", "20000");
+            insertSettingIfMissing("daily_rate_divisor_pkwt", "22");
+            insertSettingIfMissing("transport_allowance_pkwt", "300000");
+            insertSettingIfMissing("meal_allowance_pkwt", "200000");
+            insertSettingIfMissing("night_shift_rate_pkwt", "40000");
+            insertSettingIfMissing("overtime_rate_per_hour_kantor", "30000");
+            insertSettingIfMissing("daily_rate_divisor_kantor", "22");
+            insertSettingIfMissing("transport_allowance_kantor", "400000");
+            insertSettingIfMissing("meal_allowance_kantor", "250000");
+            insertSettingIfMissing("night_shift_rate_kantor", "45000");
+            insertSettingIfMissing("crewstore_overtime_rate_per_hour", "25000");
+            insertSettingIfMissing("crewstore_daily_rate_divisor", "22");
+            insertSettingIfMissing("crewstore_transport_allowance", "500000");
+            insertSettingIfMissing("crewstore_meal_allowance", "300000");
+            insertSettingIfMissing("crewstore_night_shift_rate", "50000");
+            insertSettingIfMissing("store_leader_overtime_rate_per_hour", "30000");
+            insertSettingIfMissing("store_leader_daily_rate_divisor", "22");
+            insertSettingIfMissing("store_leader_transport_allowance", "600000");
+            insertSettingIfMissing("store_leader_meal_allowance", "350000");
+            insertSettingIfMissing("store_leader_night_shift_rate", "55000");
+            insertSettingIfMissing("manager_overtime_rate_per_hour", "35000");
+            insertSettingIfMissing("manager_daily_rate_divisor", "22");
+            insertSettingIfMissing("manager_transport_allowance", "700000");
+            insertSettingIfMissing("manager_meal_allowance", "400000");
+            insertSettingIfMissing("manager_night_shift_rate", "60000");
+
+            migrateRoles();
+            migratePasswords();
+            markMigrationApplied(1);
+        }
     }
 
     private void insertSettingIfMissing(String key, String value) {
@@ -205,18 +240,19 @@ public class DatabaseService {
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, username);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                String storedHash = rs.getString("password");
-                if (storedHash == null || !BCrypt.checkpw(password, storedHash)) {
-                    return null;
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String storedHash = rs.getString("password");
+                    if (storedHash == null || !BCrypt.checkpw(password, storedHash)) {
+                        return null;
+                    }
+                    User user = new User();
+                    user.setId(rs.getInt("id"));
+                    user.setUsername(rs.getString("username"));
+                    user.setPassword(storedHash);
+                    user.setRole(User.Role.valueOf(rs.getString("role")));
+                    return user;
                 }
-                User user = new User();
-                user.setId(rs.getInt("id"));
-                user.setUsername(rs.getString("username"));
-                user.setPassword(storedHash);
-                user.setRole(User.Role.valueOf(rs.getString("role")));
-                return user;
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -231,33 +267,35 @@ public class DatabaseService {
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(check)) {
             ps.setString(1, emp.getEmployeeId());
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                int id = rs.getInt("id");
-                String update = "UPDATE employees SET name=?, email=?, position=?, department=?, base_salary=?, employment_type=? WHERE id=?";
-                try (PreparedStatement ups = conn.prepareStatement(update)) {
-                    ups.setString(1, emp.getName());
-                    ups.setString(2, emp.getEmail());
-                    ups.setString(3, emp.getPosition());
-                    ups.setString(4, emp.getDepartment());
-                    ups.setDouble(5, emp.getBaseSalary());
-                    ups.setString(6, emp.getEmploymentType());
-                    ups.setInt(7, id);
-                    ups.executeUpdate();
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    int id = rs.getInt("id");
+                    String update = "UPDATE employees SET name=?, email=?, position=?, department=?, base_salary=?, employment_type=? WHERE id=?";
+                    try (PreparedStatement ups = conn.prepareStatement(update)) {
+                        ups.setString(1, emp.getName());
+                        ups.setString(2, emp.getEmail());
+                        ups.setString(3, emp.getPosition());
+                        ups.setString(4, emp.getDepartment());
+                        ups.setDouble(5, emp.getBaseSalary());
+                        ups.setString(6, emp.getEmploymentType());
+                        ups.setInt(7, id);
+                        ups.executeUpdate();
+                    }
+                    return id;
                 }
-                return id;
-            } else {
-                String insert = "INSERT INTO employees (employee_id, name, email, position, department, base_salary, employment_type) VALUES (?,?,?,?,?,?,?)";
-                try (PreparedStatement ips = conn.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
-                    ips.setString(1, emp.getEmployeeId());
-                    ips.setString(2, emp.getName());
-                    ips.setString(3, emp.getEmail());
-                    ips.setString(4, emp.getPosition());
-                    ips.setString(5, emp.getDepartment());
-                    ips.setDouble(6, emp.getBaseSalary());
-                    ips.setString(7, emp.getEmploymentType());
-                    ips.executeUpdate();
-                    ResultSet keys = ips.getGeneratedKeys();
+            }
+
+            String insert = "INSERT INTO employees (employee_id, name, email, position, department, base_salary, employment_type) VALUES (?,?,?,?,?,?,?)";
+            try (PreparedStatement ips = conn.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
+                ips.setString(1, emp.getEmployeeId());
+                ips.setString(2, emp.getName());
+                ips.setString(3, emp.getEmail());
+                ips.setString(4, emp.getPosition());
+                ips.setString(5, emp.getDepartment());
+                ips.setDouble(6, emp.getBaseSalary());
+                ips.setString(7, emp.getEmploymentType());
+                ips.executeUpdate();
+                try (ResultSet keys = ips.getGeneratedKeys()) {
                     if (keys.next()) return keys.getInt(1);
                 }
             }
@@ -341,28 +379,29 @@ public class DatabaseService {
              PreparedStatement ps = conn.prepareStatement(check)) {
             ps.setInt(1, payslip.getEmployeeId());
             ps.setString(2, payslip.getPeriod());
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                int id = rs.getInt("id");
-                String update = "UPDATE payslips SET days_present=?, days_absent=?, overtime_hours=?, " +
-                        "base_salary=?, overtime_pay=?, deductions=?, allowances=?, net_salary=?, " +
-                        "night_shift_incentive=?, is_night_shift=?, pdf_path=? WHERE id=?";
-                try (PreparedStatement ups = conn.prepareStatement(update)) {
-                    ups.setInt(1, payslip.getDaysPresent());
-                    ups.setInt(2, payslip.getDaysAbsent());
-                    ups.setDouble(3, payslip.getOvertimeHours());
-                    ups.setDouble(4, payslip.getBaseSalary());
-                    ups.setDouble(5, payslip.getOvertimePay());
-                    ups.setDouble(6, payslip.getDeductions());
-                    ups.setDouble(7, payslip.getAllowances());
-                    ups.setDouble(8, payslip.getNetSalary());
-                    ups.setDouble(9, payslip.getNightShiftIncentive());
-                    ups.setInt(10, payslip.isNightShift() ? 1 : 0);
-                    ups.setString(11, payslip.getPdfPath());
-                    ups.setInt(12, id);
-                    ups.executeUpdate();
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    int id = rs.getInt("id");
+                    String update = "UPDATE payslips SET days_present=?, days_absent=?, overtime_hours=?, " +
+                            "base_salary=?, overtime_pay=?, deductions=?, allowances=?, net_salary=?, " +
+                            "night_shift_incentive=?, is_night_shift=?, pdf_path=? WHERE id=?";
+                    try (PreparedStatement ups = conn.prepareStatement(update)) {
+                        ups.setInt(1, payslip.getDaysPresent());
+                        ups.setInt(2, payslip.getDaysAbsent());
+                        ups.setDouble(3, payslip.getOvertimeHours());
+                        ups.setDouble(4, payslip.getBaseSalary());
+                        ups.setDouble(5, payslip.getOvertimePay());
+                        ups.setDouble(6, payslip.getDeductions());
+                        ups.setDouble(7, payslip.getAllowances());
+                        ups.setDouble(8, payslip.getNetSalary());
+                        ups.setDouble(9, payslip.getNightShiftIncentive());
+                        ups.setInt(10, payslip.isNightShift() ? 1 : 0);
+                        ups.setString(11, payslip.getPdfPath());
+                        ups.setInt(12, id);
+                        ups.executeUpdate();
+                    }
+                    return id;
                 }
-                return id;
             }
         } catch (SQLException e) { e.printStackTrace(); }
 
@@ -385,8 +424,9 @@ public class DatabaseService {
             ps.setInt(12, payslip.isNightShift() ? 1 : 0);
             ps.setString(13, payslip.getPdfPath());
             ps.executeUpdate();
-            ResultSet keys = ps.getGeneratedKeys();
-            if (keys.next()) return keys.getInt(1);
+            try (ResultSet keys = ps.getGeneratedKeys()) {
+                if (keys.next()) return keys.getInt(1);
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -398,17 +438,19 @@ public class DatabaseService {
         String sql = "SELECT p.*, e.name as emp_name, e.email as emp_email, e.employee_id as emp_code, " +
                 "e.position, e.department FROM payslips p " +
                 "JOIN employees e ON p.employee_id = e.id " +
-                (period != null && !period.isEmpty() ? "WHERE p.period = ? " : "") +
+                "WHERE (? IS NULL OR ? = '' OR p.period = ?) " +
                 "ORDER BY e.name";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            if (period != null && !period.isEmpty()) {
-                ps.setString(1, period);
-            }
-            ResultSet rs = ps.executeQuery();
-            while (rs.next()) {
-                Payslip p = mapPayslip(rs);
-                list.add(p);
+            String param = (period != null && !period.isEmpty()) ? period : null;
+            ps.setString(1, param);
+            ps.setString(2, param);
+            ps.setString(3, param);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Payslip p = mapPayslip(rs);
+                    list.add(p);
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -472,8 +514,9 @@ public class DatabaseService {
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, id);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) return mapPayslip(rs);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return mapPayslip(rs);
+            }
         } catch (SQLException e) { e.printStackTrace(); }
         return null;
     }
@@ -571,26 +614,28 @@ public class DatabaseService {
     public List<SendHistory> getSendHistory(String period) {
         List<SendHistory> list = new ArrayList<>();
         String sql = "SELECT * FROM send_history " +
-                (period != null && !period.isEmpty() ? "WHERE period = ? " : "") +
+                "WHERE (? IS NULL OR ? = '' OR period = ?) " +
                 "ORDER BY sent_at DESC";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            if (period != null && !period.isEmpty()) {
-                ps.setString(1, period);
-            }
-            ResultSet rs = ps.executeQuery();
-            while (rs.next()) {
-                SendHistory h = new SendHistory();
-                h.setId(rs.getInt("id"));
-                h.setPayslipId(rs.getInt("payslip_id"));
-                h.setEmployeeName(rs.getString("employee_name"));
-                h.setEmployeeEmail(rs.getString("employee_email"));
-                h.setPeriod(rs.getString("period"));
-                h.setSentAt(rs.getString("sent_at"));
-                h.setStatus(rs.getString("status"));
-                h.setErrorMessage(rs.getString("error_message"));
-                h.setSentBy(rs.getString("sent_by"));
-                list.add(h);
+            String param = (period != null && !period.isEmpty()) ? period : null;
+            ps.setString(1, param);
+            ps.setString(2, param);
+            ps.setString(3, param);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    SendHistory h = new SendHistory();
+                    h.setId(rs.getInt("id"));
+                    h.setPayslipId(rs.getInt("payslip_id"));
+                    h.setEmployeeName(rs.getString("employee_name"));
+                    h.setEmployeeEmail(rs.getString("employee_email"));
+                    h.setPeriod(rs.getString("period"));
+                    h.setSentAt(rs.getString("sent_at"));
+                    h.setStatus(rs.getString("status"));
+                    h.setErrorMessage(rs.getString("error_message"));
+                    h.setSentBy(rs.getString("sent_by"));
+                    list.add(h);
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -622,8 +667,9 @@ public class DatabaseService {
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement("SELECT `value` FROM settings WHERE `key` = ?")) {
             ps.setString(1, key);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) return rs.getString("value");
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getString("value");
+            }
         } catch (SQLException e) { e.printStackTrace(); }
         return "";
     }

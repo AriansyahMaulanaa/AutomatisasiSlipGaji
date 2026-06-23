@@ -104,7 +104,7 @@ public class HistoryDetailDialog extends JDialog {
         btnPanel.setBorder(new EmptyBorder(16, 0, 0, 0));
 
         if (payslip != null && payslip.getPdfPath() != null && !payslip.getPdfPath().isEmpty()) {
-            JButton openPdfBtn = UIHelper.createStyledButton("📂 Buka Slip PDF", Constants.PRIMARY);
+            JButton openPdfBtn = UIHelper.createStyledButton("Buka Slip PDF", Constants.PRIMARY);
             openPdfBtn.addActionListener(e -> openPdf());
             btnPanel.add(openPdfBtn);
         }

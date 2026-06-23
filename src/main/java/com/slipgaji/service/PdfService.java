@@ -13,12 +13,14 @@ import java.io.IOException;
 
 public class PdfService {
 
-    private static final Color HEADER_BG = new Color(79, 70, 229);
+    // Biru — konsisten dengan tema login (#2563EB, #3B82F6)
+    private static final Color HEADER_BG = new Color(0, 110, 230);        // Bright Blue
+    private static final Color HEADER_ACCENT = new Color(147, 197, 253); // Blue-300
     private static final Color ROW_ALT = new Color(245, 247, 250);
     private static final Color BORDER = new Color(226, 232, 240);
     private static final Color TEXT_DARK = new Color(15, 23, 42);
     private static final Color TEXT_GRAY = new Color(100, 116, 139);
-    private static final Color NET_BG = new Color(16, 185, 129);
+    private static final Color NET_BG = new Color(16, 185, 129); // Tetap hijau untuk net salary
 
     private final String companyName;
     private final String companyAddress;
@@ -43,7 +45,7 @@ public class PdfService {
 
         // Fonts
         Font titleFont = new Font(Font.HELVETICA, 18, Font.BOLD, Color.WHITE);
-        Font subtitleFont = new Font(Font.HELVETICA, 10, Font.NORMAL, new Color(200, 200, 230));
+        Font subtitleFont = new Font(Font.HELVETICA, 10, Font.NORMAL, HEADER_ACCENT);
         Font headingFont = new Font(Font.HELVETICA, 12, Font.BOLD, TEXT_DARK);
         Font labelFont = new Font(Font.HELVETICA, 10, Font.NORMAL, TEXT_GRAY);
         Font valueFont = new Font(Font.HELVETICA, 10, Font.BOLD, TEXT_DARK);
@@ -51,6 +53,7 @@ public class PdfService {
         Font totalLabelFont = new Font(Font.HELVETICA, 12, Font.BOLD, Color.WHITE);
         Font totalValueFont = new Font(Font.HELVETICA, 14, Font.BOLD, Color.WHITE);
         Font footerFont = new Font(Font.HELVETICA, 8, Font.NORMAL, TEXT_GRAY);
+        Font smallBold = new Font(Font.HELVETICA, 8, Font.BOLD, TEXT_GRAY);
 
         // ===== HEADER =====
         PdfPTable headerTable = new PdfPTable(1);
@@ -69,7 +72,8 @@ public class PdfService {
         addressPara.setAlignment(Element.ALIGN_LEFT);
         headerCell.addElement(addressPara);
 
-        Paragraph slipTitle = new Paragraph("SLIP GAJI KARYAWAN", new Font(Font.HELVETICA, 10, Font.BOLD, new Color(180, 180, 230)));
+        Paragraph slipTitle = new Paragraph("SLIP GAJI KARYAWAN",
+                new Font(Font.HELVETICA, 10, Font.BOLD, new Color(191, 219, 254))); // Blue-200
         slipTitle.setSpacingBefore(8);
         slipTitle.setAlignment(Element.ALIGN_LEFT);
         headerCell.addElement(slipTitle);
@@ -88,13 +92,14 @@ public class PdfService {
         addInfoRow(infoTable, "Periode", formatPeriod(payslip.getPeriod()), "Tgl. Cetak", java.time.LocalDate.now().toString(), labelFont, valueFont);
 
         document.add(infoTable);
+        // Garis pemisah setelah info
+        document.add(createSeparatorLine());
         document.add(new Paragraph(" "));
 
         // ===== ATTENDANCE =====
         Paragraph attTitle = new Paragraph("KEHADIRAN", headingFont);
         attTitle.setSpacingBefore(5);
         document.add(attTitle);
-        document.add(createLine());
 
         int attCols = payslip.isNightShift() ? 4 : 3;
         PdfPTable attTable = new PdfPTable(attCols);
@@ -114,7 +119,6 @@ public class PdfService {
         Paragraph salaryTitle = new Paragraph("RINCIAN GAJI", headingFont);
         salaryTitle.setSpacingBefore(5);
         document.add(salaryTitle);
-        document.add(createLine());
 
         PdfPTable salaryTable = new PdfPTable(2);
         salaryTable.setWidthPercentage(100);
@@ -126,12 +130,10 @@ public class PdfService {
         addSalaryRow(salaryTable, "Uang Lembur (" + payslip.getOvertimeHours() + " jam)", UIHelper.formatCurrency(payslip.getOvertimePay()), normalFont, valueFont, true);
         addSalaryRow(salaryTable, "Tunjangan (Transport + Makan)", UIHelper.formatCurrency(payslip.getAllowances()), normalFont, valueFont, false);
 
-        // Night Shift Incentive (if applicable)
         if (payslip.getNightShiftIncentive() > 0) {
             addSalaryRow(salaryTable, "Insentif Shift Malam", UIHelper.formatCurrency(payslip.getNightShiftIncentive()), normalFont, valueFont, true);
         }
 
-        // Potongan
         addSalaryHeader(salaryTable, "POTONGAN");
         addSalaryRow(salaryTable, "Potongan Absen (" + payslip.getDaysAbsent() + " hari)", UIHelper.formatCurrency(payslip.getDeductions()), normalFont, valueFont, true);
 
@@ -141,18 +143,18 @@ public class PdfService {
         PdfPTable netTable = new PdfPTable(2);
         netTable.setWidthPercentage(100);
         netTable.setWidths(new float[]{60, 40});
-        netTable.setSpacingBefore(5);
+        netTable.setSpacingBefore(8);
 
         PdfPCell netLabelCell = new PdfPCell(new Phrase("GAJI BERSIH (TAKE HOME PAY)", totalLabelFont));
         netLabelCell.setBackgroundColor(NET_BG);
-        netLabelCell.setPadding(12);
+        netLabelCell.setPadding(14);
         netLabelCell.setBorder(Rectangle.NO_BORDER);
         netLabelCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
         netTable.addCell(netLabelCell);
 
         PdfPCell netValueCell = new PdfPCell(new Phrase(UIHelper.formatCurrency(payslip.getNetSalary()), totalValueFont));
         netValueCell.setBackgroundColor(NET_BG);
-        netValueCell.setPadding(12);
+        netValueCell.setPadding(14);
         netValueCell.setBorder(Rectangle.NO_BORDER);
         netValueCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
         netValueCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
@@ -162,61 +164,65 @@ public class PdfService {
 
         // ===== FOOTER =====
         document.add(new Paragraph(" "));
-        document.add(new Paragraph(" "));
 
         Paragraph disclaimer = new Paragraph(
-                "Dokumen ini digenerate secara otomatis oleh sistem SlipGaji Pro v" + Constants.APP_VERSION + " dan sah tanpa tanda tangan.",
+                "Dokumen ini digenerate secara otomatis oleh sistem " + Constants.APP_NAME + " v" + Constants.APP_VERSION
+                + " dan sah tanpa tanda tangan.",
                 footerFont
         );
         disclaimer.setAlignment(Element.ALIGN_CENTER);
         document.add(disclaimer);
 
         Paragraph confidential = new Paragraph(
-                "CONFIDENTIAL - Hanya untuk penerima yang dituju.",
-                new Font(Font.HELVETICA, 8, Font.BOLD, TEXT_GRAY)
+                "RAHASIA - Hanya untuk penerima yang dituju.",
+                smallBold
         );
         confidential.setAlignment(Element.ALIGN_CENTER);
         confidential.setSpacingBefore(4);
         document.add(confidential);
 
-        Paragraph watermark = new Paragraph(
-                "Dibuat oleh: Mahasiswa Universitas Pamulang",
-                new Font(Font.HELVETICA, 8, Font.ITALIC, new Color(180, 180, 180))
-        );
-        watermark.setAlignment(Element.ALIGN_CENTER);
-        watermark.setSpacingBefore(20);
-        document.add(watermark);
-
         document.close();
         return filePath;
+    }
+
+    /** Garis pemisah horizontal tipis */
+    private Paragraph createSeparatorLine() {
+        Paragraph p = new Paragraph();
+        p.setSpacingBefore(4);
+        p.setSpacingAfter(4);
+        return p;
     }
 
     private void addInfoRow(PdfPTable table, String label1, String value1, String label2, String value2, Font labelFont, Font valueFont) {
         PdfPCell l1 = new PdfPCell(new Phrase(label1, labelFont));
         l1.setBorder(Rectangle.NO_BORDER);
         l1.setPadding(4);
+        l1.setPaddingBottom(6);
         table.addCell(l1);
 
         PdfPCell v1 = new PdfPCell(new Phrase(": " + (value1 != null ? value1 : "-"), valueFont));
         v1.setBorder(Rectangle.NO_BORDER);
         v1.setPadding(4);
+        v1.setPaddingBottom(6);
         table.addCell(v1);
 
         PdfPCell l2 = new PdfPCell(new Phrase(label2, labelFont));
         l2.setBorder(Rectangle.NO_BORDER);
         l2.setPadding(4);
+        l2.setPaddingBottom(6);
         table.addCell(l2);
 
         PdfPCell v2 = new PdfPCell(new Phrase(": " + (value2 != null ? value2 : "-"), valueFont));
         v2.setBorder(Rectangle.NO_BORDER);
         v2.setPadding(4);
+        v2.setPaddingBottom(6);
         table.addCell(v2);
     }
 
     private void addAttendanceCell(PdfPTable table, String label, String value, Font labelFont, Font valueFont) {
         PdfPCell cell = new PdfPCell();
-        cell.setBorder(Rectangle.BOX);
-        cell.setBorderColor(BORDER);
+        cell.setBorder(Rectangle.BOTTOM);
+        cell.setBorderColor(HEADER_BG); // pakai biru
         cell.setPadding(10);
         cell.setBackgroundColor(ROW_ALT);
 
@@ -255,12 +261,6 @@ public class PdfService {
         valueCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
         if (alt) valueCell.setBackgroundColor(ROW_ALT);
         table.addCell(valueCell);
-    }
-
-    private Paragraph createLine() {
-        Paragraph line = new Paragraph(" ");
-        line.setSpacingAfter(2);
-        return line;
     }
 
     private String formatPeriod(String period) {

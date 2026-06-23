@@ -46,7 +46,7 @@ public class PayslipPreviewDialog extends JDialog {
         btnPanel.setBackground(Constants.BG_DARK);
         btnPanel.setBorder(new EmptyBorder(16, 0, 0, 0));
 
-        JButton openPdfBtn = UIHelper.createStyledButton("📂 Buka File PDF", Constants.PRIMARY);
+        JButton openPdfBtn = UIHelper.createStyledButton("Buka File PDF", Constants.PRIMARY);
         openPdfBtn.addActionListener(e -> openPdf());
 
         JButton closeBtn = UIHelper.createStyledButton("Tutup", Constants.REFRESH_BTN);

@@ -13,12 +13,15 @@ public class Constants {
     public static final String APP_DIR = System.getProperty("user.dir");
     public static final String PDF_DIR = APP_DIR + File.separator + "output" + File.separator + "pdf";
 
-    // Database MariaDB
+    // Database MariaDB — Fallback defaults (override via config.properties)
+    // 🔐 WARNING: Do not store real credentials here!
+    // Copy config.properties.example to config.properties and set your credentials there.
+    // config.properties is in .gitignore and will not be committed.
     public static final String DB_HOST = "localhost";
     public static final int DB_PORT = 3306;
     public static final String DB_NAME = "slipgaji_db";
     public static final String DB_USER = "root";
-    public static final String DB_PASS = "[REDACTED]";
+    public static final String DB_PASS = ""; // Change via config.properties!
 
     // Colors - Modern Light Theme (Refined)
     public static final Color PRIMARY = new Color(59, 130, 246); // Soft Blue
@@ -47,7 +50,7 @@ public class Constants {
 
     // Fonts — SemiBold simulated via PLAIN+BOLD hybrid; Java doesn't have native
     // SemiBold
-    public static final String FONT_FAMILY = "SF Pro";
+    public static final String FONT_FAMILY = "SansSerif";
     public static final Font FONT_TITLE = new Font(FONT_FAMILY, Font.BOLD, 22);
     public static final Font FONT_SUBTITLE = new Font(FONT_FAMILY, Font.BOLD, 16);
     public static final Font FONT_HEADING = new Font(FONT_FAMILY, Font.BOLD, 14);

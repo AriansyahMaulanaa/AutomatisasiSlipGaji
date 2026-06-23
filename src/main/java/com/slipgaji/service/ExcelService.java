@@ -47,6 +47,7 @@ public class ExcelService {
      * K: Shift Malam (Y/Ya/1 = true, optional column)
      * L: Tipe Karyawan (TETAP/PKWT/KANTOR, optional column)
      */
+    @SuppressWarnings("checkstyle:MethodLength")
     public ImportResult readExcelFile(File file) throws IOException {
         List<Employee> employees = new ArrayList<>();
         List<ValidationError> errors = new ArrayList<>();
@@ -193,6 +194,14 @@ public class ExcelService {
                 }
                 emp.setDaysAbsent(daysAbsent);
 
+                // Validasi total hari hadir + absen tidak melebihi 31
+                if (!rowHasError && (daysPresent + daysAbsent) > 31) {
+                    errors.add(new ValidationError(excelRow, "Kehadiran",
+                        "Total hari hadir (" + daysPresent + ") + absen (" + daysAbsent + ") = "
+                        + (daysPresent + daysAbsent) + " tidak boleh melebihi 31"));
+                    rowHasError = true;
+                }
+
                 // J: Overtime Hours
                 Cell overtimeCell = row.getCell(9);
                 String overtimeRaw = getCellStringValue(overtimeCell);
@@ -216,8 +225,17 @@ public class ExcelService {
                 Cell nightShiftCell = row.getCell(10);
                 emp.setNightShift(isNightShiftValue(nightShiftCell));
 
-                // L: Tipe Karyawan (optional, diabaikan — parameter berdasarkan Posisi)
-                // column 11 not processed
+                // L: Tipe Karyawan (optional)
+                String typeRaw = getCellStringValue(row.getCell(11)).trim().toUpperCase();
+                String employmentType = "TETAP";
+                if (!typeRaw.isEmpty()) {
+                    if (typeRaw.equals("PKWT") || typeRaw.equals("KANTOR") || typeRaw.equals("TETAP")) {
+                        employmentType = typeRaw;
+                    } else {
+                        warnings.add(new ValidationError(excelRow, "Tipe Karyawan", "Tipe tidak dikenal: " + typeRaw + ", menggunakan default TETAP"));
+                    }
+                }
+                emp.setEmploymentType(employmentType);
 
                 if (!rowHasError) {
                     employees.add(emp);
@@ -245,15 +263,16 @@ public class ExcelService {
 
     /**
      * Check if a cell contains a numeric value (either NUMERIC type or parseable string)
+     * Handles Indonesian format: "." = thousands separator, "," = decimal separator
      */
     private boolean isCellNumeric(Cell cell) {
         if (cell == null) return false;
         if (cell.getCellType() == CellType.NUMERIC) return true;
         if (cell.getCellType() == CellType.STRING) {
-            String val = cell.getStringCellValue().trim().replace(",", "").replace(".", "");
+            String val = cell.getStringCellValue().trim();
             if (val.isEmpty()) return false;
             try {
-                Double.parseDouble(val);
+                parseIndonesianNumber(val);
                 return true;
             } catch (NumberFormatException e) {
                 return false;
@@ -268,6 +287,38 @@ public class ExcelService {
             }
         }
         return false;
+    }
+
+    /**
+     * Parse Indonesian number format to double.
+     * Examples:
+     *   "1.500.000"   -> 1500000
+     *   "1.500.000,50" -> 1500000.50
+     *   "1500000.50"  -> 1500000.50 (standard format)
+     *   "1500000"     -> 1500000
+     */
+    private double parseIndonesianNumber(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return 0.0;
+        }
+        String clean = value.trim();
+        // Check if it contains comma (Indonesian decimal separator)
+        if (clean.contains(",")) {
+            // Remove all dots (thousands separators)
+            clean = clean.replace(".", "");
+            // Replace comma with dot (decimal)
+            clean = clean.replace(",", ".");
+        } else if (clean.contains(".")) {
+            // Could be either thousands separators or decimal point
+            // Count dots: if multiple dots, they're thousands separators
+            int dotCount = clean.length() - clean.replace(".", "").length();
+            if (dotCount > 1) {
+                // Multiple dots = Indonesian thousands separators
+                clean = clean.replace(".", "");
+            }
+            // Single dot could be decimal, keep as-is
+        }
+        return Double.parseDouble(clean);
     }
 
     private String getCellStringValue(Cell cell) {
@@ -300,7 +351,7 @@ public class ExcelService {
             case NUMERIC -> cell.getNumericCellValue();
             case STRING -> {
                 try {
-                    yield Double.parseDouble(cell.getStringCellValue().trim().replace(",", "").replace(".", ""));
+                    yield parseIndonesianNumber(cell.getStringCellValue());
                 } catch (NumberFormatException e) {
                     yield 0.0;
                 }

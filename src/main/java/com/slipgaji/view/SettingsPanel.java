@@ -254,6 +254,33 @@ public class SettingsPanel extends JPanel {
             default -> "crewstore";
         };
 
+        // Validate all fields are numeric and positive
+        String[][] fields = {
+            {overtimeRateField.getText().trim(), "Tarif Lembur/Jam"},
+            {divisorField.getText().trim(), "Hari Kerja/Bulan"},
+            {transportField.getText().trim(), "Tunj. Transport"},
+            {mealField.getText().trim(), "Tunj. Makan"},
+            {nightShiftRateField.getText().trim(), "Insentif Shift Malam"}
+        };
+        for (String[] f : fields) {
+            String val = f[0];
+            String label = f[1];
+            if (val.isEmpty()) {
+                UIHelper.showError(this, label + " tidak boleh kosong.");
+                return;
+            }
+            try {
+                double d = Double.parseDouble(val.replace(",", "").replace(".", ""));
+                if (d <= 0) {
+                    UIHelper.showError(this, label + " harus bernilai positif.");
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                UIHelper.showError(this, label + " harus berisi angka. Ditemukan: " + val);
+                return;
+            }
+        }
+
         db.saveSetting(prefix + "_overtime_rate_per_hour", overtimeRateField.getText().trim());
         db.saveSetting(prefix + "_daily_rate_divisor", divisorField.getText().trim());
         db.saveSetting(prefix + "_transport_allowance", transportField.getText().trim());

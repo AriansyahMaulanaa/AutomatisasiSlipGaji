@@ -72,10 +72,10 @@ public class HistoryPanel extends JPanel {
                 if (!sel) {
                     if ("SUCCESS".equals(v)) {
                         setForeground(Constants.ACCENT);
-                        setText("✅ Terkirim");
+                        setText("Terkirim");
                     } else {
                         setForeground(Constants.ACCENT_DANGER);
-                        setText("❌ Gagal");
+                        setText("Gagal");
                     }
                     setBackground(r % 2 == 0 ? Constants.BG_CARD : Constants.TABLE_ROW_ALT);
                 }
@@ -89,7 +89,7 @@ public class HistoryPanel extends JPanel {
             @Override
             public Component getTableCellRendererComponent(JTable t, Object v,
                     boolean sel, boolean foc, int r, int c) {
-                JLabel label = new JLabel("📋 Detail");
+                JLabel label = new JLabel("Lihat Detail");
                 label.setFont(Constants.FONT_SMALL);
                 label.setForeground(Constants.PRIMARY);
                 label.setHorizontalAlignment(SwingConstants.CENTER);

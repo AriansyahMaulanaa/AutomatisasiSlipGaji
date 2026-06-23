@@ -9,6 +9,10 @@ import com.slipgaji.util.ValidationUtil;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.io.File;
 
 public class EditPayslipDialog extends JDialog {
 
@@ -33,7 +37,7 @@ public class EditPayslipDialog extends JDialog {
     public boolean isSaved() { return saved; }
 
     private void initUI() {
-        setSize(520, 580);
+        setSize(520, 620);
         setLocationRelativeTo(getOwner());
         setResizable(false);
 
@@ -90,8 +94,27 @@ public class EditPayslipDialog extends JDialog {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         typeCombo = new JComboBox<>(new String[]{"TETAP", "PKWT", "KANTOR"});
         typeCombo.setFont(Constants.FONT_BODY);
-        // Try to determine type from payslip (we don't store it directly, so use default)
-        typeCombo.setSelectedItem("TETAP");
+        // Load employment_type from employees table
+        String empTypeSql = "SELECT employment_type FROM employees WHERE id = ?";
+        try (java.sql.Connection conn = db.getConnection();
+             java.sql.PreparedStatement ps = conn.prepareStatement(empTypeSql)) {
+            ps.setInt(1, payslip.getEmployeeId());
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String type = rs.getString("employment_type");
+                    if (type != null) {
+                        for (int i = 0; i < typeCombo.getItemCount(); i++) {
+                            if (typeCombo.getItemAt(i).equalsIgnoreCase(type.trim())) {
+                                typeCombo.setSelectedIndex(i);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (java.sql.SQLException e) {
+            e.printStackTrace();
+        }
         formPanel.add(typeCombo, gbc);
         row++;
 
@@ -165,9 +188,11 @@ public class EditPayslipDialog extends JDialog {
             UIHelper.showError(this, "Format email tidak valid: " + email);
             return;
         }
+        // Parse salary (handle Indonesian format: . = ribuan, , = desimal)
         double salary;
         try {
-            salary = Double.parseDouble(salaryStr.replace(",", "").replace(".", ""));
+            String cleanSalary = salaryStr.replace(".", "").replace(",", ".");
+            salary = Double.parseDouble(cleanSalary);
             if (salary <= 0) throw new NumberFormatException();
         } catch (NumberFormatException e) {
             UIHelper.showError(this, "Gaji Pokok harus berupa angka positif.");
@@ -199,10 +224,78 @@ public class EditPayslipDialog extends JDialog {
         emp.setBaseSalary(salary);
         emp.setEmploymentType(type);
         db.updateEmployee(emp);
+
+        // Hapus PDF lama jika ada — karena data berubah, PDF harus diregenerate
+        if (payslip.getPdfPath() != null && !payslip.getPdfPath().isEmpty()) {
+            File oldPdf = new File(payslip.getPdfPath());
+            if (oldPdf.exists()) {
+                oldPdf.delete();
+            }
+            // Kosongkan path PDF di database
+            try (java.sql.Connection conn = db.getConnection();
+                 java.sql.PreparedStatement ps = conn.prepareStatement(
+                     "UPDATE payslips SET pdf_path = NULL WHERE id = ?")) {
+                ps.setInt(1, payslip.getId());
+                ps.executeUpdate();
+            } catch (java.sql.SQLException e) {
+                e.printStackTrace();
+            }
+            payslip.setPdfPath(null);
+        }
+
+        // Update raw payslip fields (base_salary, days, overtime_hours)
         db.updatePayslipData(payslip.getId(), salary, present, absent, overtime);
 
+        // ===== RECALCULATE computed fields =====
+        String prefix;
+        switch (position.toUpperCase()) {
+            case "STORE LEADER":
+                prefix = "store_leader";
+                break;
+            case "MANAGER":
+                prefix = "manager";
+                break;
+            default:
+                prefix = "crewstore";
+                break;
+        }
+
+        double overtimeRate = db.getSettingDouble(prefix + "_overtime_rate_per_hour", 25000);
+        int divisor = (int) db.getSettingDouble(prefix + "_daily_rate_divisor", 22);
+        double transport = db.getSettingDouble(prefix + "_transport_allowance", 500000);
+        double meal = db.getSettingDouble(prefix + "_meal_allowance", 300000);
+        double nightShiftRate = db.getSettingDouble(prefix + "_night_shift_rate", 50000);
+
+        double dailyRate = divisor > 0 ? salary / divisor : 0;
+        double recalcDeductions = dailyRate * absent;
+        double recalcOvertimePay = overtime * overtimeRate;
+        double recalcAllowances = transport + meal;
+
+        double recalcNightShiftIncentive = payslip.getNightShiftIncentive();
+        if (recalcNightShiftIncentive == 0 && payslip.isNightShift()) {
+            recalcNightShiftIncentive = nightShiftRate;
+        }
+
+        double recalcNetSalary = salary - recalcDeductions + recalcOvertimePay + recalcAllowances + recalcNightShiftIncentive;
+
+        String recalcSql = "UPDATE payslips SET overtime_pay=?, deductions=?, allowances=?, net_salary=?, night_shift_incentive=? WHERE id=?";
+        try (Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement(recalcSql)) {
+            ps.setDouble(1, recalcOvertimePay);
+            ps.setDouble(2, recalcDeductions);
+            ps.setDouble(3, recalcAllowances);
+            ps.setDouble(4, recalcNetSalary);
+            ps.setDouble(5, recalcNightShiftIncentive);
+            ps.setInt(6, payslip.getId());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            UIHelper.showError(this, "Gagal merekalkulasi slip gaji: " + e.getMessage());
+            return;
+        }
+
         saved = true;
-        UIHelper.showSuccess(this, "Data berhasil diperbarui.");
+        UIHelper.showSuccess(this, "Data berhasil diperbarui.\nSlip gaji otomatis dihitung ulang.");
         dispose();
     }
 }

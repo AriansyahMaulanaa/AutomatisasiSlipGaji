@@ -23,16 +23,32 @@ public class App {
             System.exit(1);
         }
 
-        // Register SF Pro font
-        try {
-            File sfPro = new File("/usr/share/fonts/sfpro/SF-Pro.ttf");
-            if (sfPro.exists()) {
-                Font f = Font.createFont(Font.TRUETYPE_FONT, sfPro);
-                GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
-                ge.registerFont(f);
+        // Register SF Pro font (with fallback to system fonts)
+        boolean sfProLoaded = false;
+        String[] fontPaths = {
+            "/usr/share/fonts/sfpro/SF-Pro.ttf",
+            "/usr/share/fonts/truetype/SF-Pro.ttf",
+            "/usr/local/share/fonts/SF-Pro.ttf",
+            "C:\\Windows\\Fonts\\SF-Pro.ttf",
+            "/System/Library/Fonts/SF-Pro.ttf"
+        };
+        for (String fp : fontPaths) {
+            File fFile = new File(fp);
+            if (fFile.exists()) {
+                try {
+                    Font f = Font.createFont(Font.TRUETYPE_FONT, fFile);
+                    GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+                    ge.registerFont(f);
+                    sfProLoaded = true;
+                    System.out.println("[Font] Loaded: " + fp);
+                    break;
+                } catch (Exception e) {
+                    System.err.println("[Font] Failed to load " + fp + ": " + e.getMessage());
+                }
             }
-        } catch (Exception e) {
-            System.err.println("SF Pro font registration skipped: " + e.getMessage());
+        }
+        if (!sfProLoaded) {
+            System.out.println("[Font] SF Pro not found, using system default font (Segoe UI / Arial).");
         }
 
         try {
