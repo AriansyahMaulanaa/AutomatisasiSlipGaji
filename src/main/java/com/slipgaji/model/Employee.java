@@ -1,5 +1,7 @@
 package com.slipgaji.model;
 
+import java.time.LocalDate;
+
 public class Employee {
     private int id;
     private String employeeId;
@@ -9,6 +11,10 @@ public class Employee {
     private String department;
     private double baseSalary;
     private String employmentType = "TETAP";
+    private LocalDate birthDate;
+    private String photo;
+    private String barcode;
+    private String status = "Aktif";
 
     // Transient fields (from Excel import, not stored in employees table)
     private int daysPresent;
@@ -53,6 +59,14 @@ public class Employee {
     public void setOvertimeHours(double overtimeHours) { this.overtimeHours = overtimeHours; }
     public boolean isNightShift() { return nightShift; }
     public void setNightShift(boolean nightShift) { this.nightShift = nightShift; }
+    public LocalDate getBirthDate() { return birthDate; }
+    public void setBirthDate(LocalDate birthDate) { this.birthDate = birthDate; }
+    public String getPhoto() { return photo; }
+    public void setPhoto(String photo) { this.photo = photo; }
+    public String getBarcode() { return barcode; }
+    public void setBarcode(String barcode) { this.barcode = barcode; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 
     @Override
     public String toString() {

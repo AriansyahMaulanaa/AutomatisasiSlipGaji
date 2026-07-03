@@ -168,6 +168,60 @@ public class DatabaseService {
             migratePasswords();
             markMigrationApplied(1);
         }
+
+        // ===== V2: Add karyawan columns and presensi table =====
+        if (!isMigrationApplied(2)) {
+            addColumnIfNotExists("employees", "birth_date", "DATE DEFAULT NULL");
+            addColumnIfNotExists("employees", "photo", "TEXT");
+            addColumnIfNotExists("employees", "barcode", "VARCHAR(100) DEFAULT NULL");
+            addColumnIfNotExists("employees", "status", "VARCHAR(20) DEFAULT 'Aktif'");
+            addIndexIfNotExists("employees", "idx_employees_barcode", "barcode");
+
+            createPresensiTable();
+
+            markMigrationApplied(2);
+        }
+    }
+
+    private void addIndexIfNotExists(String table, String indexName, String column) {
+        try (Connection conn = getConnection()) {
+            DatabaseMetaData meta = conn.getMetaData();
+            ResultSet rs = meta.getIndexInfo(null, null, table, false, false);
+            boolean exists = false;
+            while (rs.next()) {
+                if (indexName.equals(rs.getString("INDEX_NAME"))) {
+                    exists = true;
+                    break;
+                }
+            }
+            rs.close();
+            if (!exists) {
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute("CREATE INDEX " + indexName + " ON " + table + " (" + column + ")");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void createPresensiTable() {
+        String sql = "CREATE TABLE IF NOT EXISTS presensi (" +
+                "id INT AUTO_INCREMENT PRIMARY KEY, " +
+                "employee_id INT NOT NULL, " +
+                "tanggal DATE NOT NULL, " +
+                "jam TIME NOT NULL, " +
+                "jenis_presensi ENUM('Masuk','Pulang') NOT NULL, " +
+                "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                "INDEX idx_presensi_emp_tgl (employee_id, tanggal), " +
+                "FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     private void insertSettingIfMissing(String key, String value) {
@@ -225,7 +279,7 @@ public class DatabaseService {
             }
             rs.close();
         } catch (SQLException e) {
-            // Column might already exist; ignore
+            throw new RuntimeException("Gagal tambah kolom " + table + "." + column + ": " + e.getMessage(), e);
         }
     }
 
@@ -580,14 +634,33 @@ public class DatabaseService {
         }
     }
 
-    public void deletePayslip(int id) {
-        String sql = "DELETE FROM payslips WHERE id = ?";
-        try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, id);
-            ps.executeUpdate();
+    public boolean deletePayslip(int id) {
+        String deleteHistory = "DELETE FROM send_history WHERE payslip_id = ?";
+        String deletePayslip = "DELETE FROM payslips WHERE id = ?";
+
+        try (Connection conn = getConnection()) {
+            // Hapus send_history terlebih dahulu (jika ada) untuk menghindari masalah FK constraint
+            try (PreparedStatement ps = conn.prepareStatement(deleteHistory)) {
+                ps.setInt(1, id);
+                int historyDeleted = ps.executeUpdate();
+                if (historyDeleted > 0) {
+                    System.out.println("INFO: Menghapus " + historyDeleted + " record send_history untuk payslip id=" + id);
+                }
+            }
+
+            // Baru hapus payslip
+            try (PreparedStatement ps = conn.prepareStatement(deletePayslip)) {
+                ps.setInt(1, id);
+                int affected = ps.executeUpdate();
+                if (affected == 0) {
+                    System.err.println("WARNING: deletePayslip(" + id + ") - no rows affected, ID mungkin tidak valid");
+                }
+                return affected > 0;
+            }
         } catch (SQLException e) {
+            System.err.println("ERROR: Gagal menghapus payslip id=" + id + ": " + e.getMessage());
             e.printStackTrace();
+            return false;
         }
     }
 

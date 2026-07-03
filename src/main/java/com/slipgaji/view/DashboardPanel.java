@@ -146,7 +146,7 @@ public class DashboardPanel extends JPanel {
 
         JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 4));
         btnRow.setOpaque(false);
-        btnRow.add(makeBtn("Import Data", Constants.PRIMARY, e -> mainView.navigateToImport()));
+        btnRow.add(makeBtn("Presensi Scan", Constants.ACCENT, e -> mainView.navigateToPresensi()));
         btnRow.add(makeBtn("Slip Gaji", new Color(79, 70, 229), e -> mainView.navigateToPayslips()));
         btnRow.add(makeBtn("Histori", Constants.ACCENT_WARN, e -> refresh()));
         card.add(btnRow, BorderLayout.CENTER);
@@ -241,7 +241,7 @@ public class DashboardPanel extends JPanel {
         JPanel list = new JPanel();
         list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
         list.setOpaque(false);
-        for (String s : new String[]{"1. Import file Excel (.xlsx) di menu Import Data","2. Generate PDF di menu Slip Gaji","3. Kirim email ke karyawan via batch","4. Cek status kirim di Histori","5. Konfigurasi SMTP & parameter di Pengaturan"}) {
+        for (String s : new String[]{"1. SPV: Scan barcode kartu karyawan di menu Presensi","2. SPV: Kelola data karyawan di menu Kelola Karyawan","3. Manager: Generate slip gaji dari data presensi","4. Manager: Kirim email slip gaji ke karyawan","5. Konfigurasi SMTP & parameter di Pengaturan"}) {
             JLabel l = new JLabel(s);
             l.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
             l.setForeground(Constants.TEXT_SECONDARY);

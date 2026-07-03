@@ -13,6 +13,8 @@ import java.text.DecimalFormatSymbols;
 import java.util.Locale;
 
 import java.awt.Dialog.ModalityType;
+import java.awt.image.BufferedImage;
+import javax.swing.ImageIcon;
 
 public class UIHelper {
 
@@ -544,6 +546,47 @@ public class UIHelper {
 
     private static String colorToHex(Color c) {
         return String.format("#%02x%02x%02x", c.getRed(), c.getGreen(), c.getBlue());
+    }
+
+    // ======================== IMAGE HELPERS ========================
+
+    public static ImageIcon createRoundedImage(ImageIcon icon, int size) {
+        if (icon == null || icon.getImage() == null) {
+            return createPlaceholderIcon(size);
+        }
+        Image img = icon.getImage().getScaledInstance(size, size, Image.SCALE_SMOOTH);
+        BufferedImage bi = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2 = bi.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setClip(new java.awt.geom.Ellipse2D.Double(0, 0, size, size));
+        g2.drawImage(img, 0, 0, null);
+        g2.dispose();
+        return new ImageIcon(bi);
+    }
+
+    public static ImageIcon createPlaceholderIcon(int size) {
+        BufferedImage bi = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2 = bi.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setColor(new Color(229, 231, 235));
+        g2.fill(new java.awt.geom.Ellipse2D.Double(0, 0, size, size));
+        g2.setColor(new Color(156, 163, 175));
+        g2.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, size / 3));
+        FontMetrics fm = g2.getFontMetrics();
+        String init = "?";
+        int tx = (size - fm.stringWidth(init)) / 2;
+        int ty = (size - fm.getHeight()) / 2 + fm.getAscent();
+        g2.drawString(init, tx, ty);
+        g2.dispose();
+        return new ImageIcon(bi);
+    }
+
+    public static ImageIcon createRoundedImageFromPath(String path, int size) {
+        if (path == null || path.isEmpty()) return createPlaceholderIcon(size);
+        java.io.File f = new java.io.File(path);
+        if (!f.exists()) return createPlaceholderIcon(size);
+        ImageIcon icon = new ImageIcon(path);
+        return createRoundedImage(icon, size);
     }
 
     private static String escapeHtml(String text) {

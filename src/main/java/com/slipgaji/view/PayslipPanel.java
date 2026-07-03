@@ -1,7 +1,10 @@
 package com.slipgaji.view;
 
+import com.slipgaji.controller.AuthController;
 import com.slipgaji.controller.EmailController;
 import com.slipgaji.controller.PayslipController;
+import com.slipgaji.controller.PresensiToPayslipController;
+import com.slipgaji.controller.PresensiToPayslipController.GenerateResult;
 import com.slipgaji.model.Payslip;
 import com.slipgaji.model.PeriodSummary;
 import com.slipgaji.service.DatabaseService;
@@ -29,6 +32,9 @@ public class PayslipPanel extends JPanel {
     private JTable table;
     private JLabel statusLabel;
     private JProgressBar progressBar;
+    
+    // Menyimpan payslip yang terpilih via popup menu agar tidak bergantung pada table selection
+    private Payslip popupSelectedPayslip;
 
     public PayslipPanel() {
         this.payslipController = new PayslipController();
@@ -71,10 +77,18 @@ public class PayslipPanel extends JPanel {
         
         JPanel tblOptions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         tblOptions.setOpaque(false);
+        JButton btnGenPresensi = UIHelper.createStyledButton("Generate dari Presensi", new Color(79, 70, 229));
+        btnGenPresensi.addActionListener(e -> generateFromPresensi());
         JButton btnGen = UIHelper.createStyledButton("Generate Semua", Constants.PRIMARY);
         btnGen.addActionListener(e -> generateAllPdfs());
         JButton btnSend = UIHelper.createStyledButton("Kirim Mode Batch", Constants.ACCENT_WARN);
         btnSend.addActionListener(e -> sendAllEmails());
+        JButton btnDelete = UIHelper.createStyledButton("Hapus", Constants.ACCENT_DANGER);
+        btnDelete.addActionListener(e -> deleteSelected());
+        tblOptions.add(btnDelete);
+        if (AuthController.isManager()) {
+            tblOptions.add(btnGenPresensi);
+        }
         tblOptions.add(btnGen);
         tblOptions.add(btnSend);
         
@@ -97,23 +111,38 @@ public class PayslipPanel extends JPanel {
         table.getColumnModel().getColumn(1).setMaxWidth(0);
         table.getColumnModel().getColumn(1).setPreferredWidth(0);
 
-        table.addMouseListener(new MouseAdapter() {
-            @Override public void mouseClicked(MouseEvent e) { if (e.getClickCount() == 2) previewSelected(); }
-        });
-        
         JPopupMenu popup = new JPopupMenu();
         JMenuItem previewItem = new JMenuItem("Lihat Slip (PDF)");
-        previewItem.addActionListener(e -> previewSelected());
+        previewItem.addActionListener(e -> { popupSelectedPayslip = getSelectedPayslip(); previewSelected(); });
         JMenuItem genItem = new JMenuItem("Generate Slip");
-        genItem.addActionListener(e -> generateSelectedPdf());
+        genItem.addActionListener(e -> { popupSelectedPayslip = getSelectedPayslip(); generateSelectedPdf(); });
         JMenuItem sendItem = new JMenuItem("Kirim Email");
-        sendItem.addActionListener(e -> sendSelected());
+        sendItem.addActionListener(e -> { popupSelectedPayslip = getSelectedPayslip(); sendSelected(); });
         JMenuItem editItem = new JMenuItem("Edit Data");
-        editItem.addActionListener(e -> editSelected());
+        editItem.addActionListener(e -> { popupSelectedPayslip = getSelectedPayslip(); editSelected(); });
         JMenuItem deleteItem = new JMenuItem("Hapus Data");
-        deleteItem.addActionListener(e -> deleteSelected());
+        deleteItem.addActionListener(e -> { popupSelectedPayslip = getSelectedPayslip(); deleteSelected(); });
         popup.add(previewItem); popup.add(genItem); popup.addSeparator(); popup.add(sendItem); popup.add(editItem); popup.addSeparator(); popup.add(deleteItem);
-        table.setComponentPopupMenu(popup);
+
+        // Fix: pastikan baris yang diklik kanan terpilih sebelum popup muncul
+        table.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) previewSelected();
+            }
+            @Override public void mousePressed(MouseEvent e) {
+                if (e.isPopupTrigger()) handlePopup(e);
+            }
+            @Override public void mouseReleased(MouseEvent e) {
+                if (e.isPopupTrigger()) handlePopup(e);
+            }
+            private void handlePopup(MouseEvent e) {
+                int row = table.rowAtPoint(e.getPoint());
+                if (row >= 0) {
+                    table.setRowSelectionInterval(row, row);
+                }
+                popup.show(e.getComponent(), e.getX(), e.getY());
+            }
+        });
 
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder(BorderFactory.createLineBorder(Constants.BORDER_COLOR));
@@ -289,12 +318,21 @@ public class PayslipPanel extends JPanel {
     }
 
     private void deleteSelected() {
-        Payslip payslip = getSelectedPayslip();
+        Payslip payslip = popupSelectedPayslip;
+        if (payslip == null) {
+            payslip = getSelectedPayslip();
+        }
         if (payslip == null) return;
+        
         if (UIHelper.showConfirm(this, "Apakah Anda yakin ingin menghapus data slip gaji untuk \n" + payslip.getEmployeeName() + " ?")) {
-            payslipController.deletePayslip(payslip.getId());
-            UIHelper.showSuccess(this, "Data slip gaji berhasil dihapus");
-            refresh();
+            boolean deleted = payslipController.deletePayslip(payslip.getId());
+            if (deleted) {
+                popupSelectedPayslip = null;
+                refresh();
+                UIHelper.showSuccess(this, "Data slip gaji berhasil dihapus");
+            } else {
+                UIHelper.showError(this, "Gagal menghapus data slip gaji. Silakan cek database atau hubungi admin.");
+            }
         }
     }
 
@@ -399,6 +437,51 @@ public class PayslipPanel extends JPanel {
                 progressBar.setVisible(false);
                 statusLabel.setText("Pengiriman selesai.");
                 loadPayslips(currentPeriod);
+            }
+        };
+        worker.execute();
+    }
+
+    private void generateFromPresensi() {
+        String period = javax.swing.JOptionPane.showInputDialog(this,
+                "Masukkan periode (yyyy-MM):", "Generate dari Presensi",
+                javax.swing.JOptionPane.PLAIN_MESSAGE);
+        if (period == null || period.trim().isEmpty()) return;
+        if (!period.matches("\\d{4}-\\d{2}")) {
+            UIHelper.showError(this, "Format periode tidak valid. Gunakan yyyy-MM (contoh: 2026-06)");
+            return;
+        }
+
+        progressBar.setVisible(true);
+        progressBar.setValue(0);
+        progressBar.setIndeterminate(true);
+        statusLabel.setText("Memproses data presensi ke slip gaji...");
+
+        SwingWorker<GenerateResult, Void> worker = new SwingWorker<>() {
+            @Override
+            protected GenerateResult doInBackground() {
+                PresensiToPayslipController controller = new PresensiToPayslipController();
+                return controller.generatePayslipsFromPresensi(period.trim());
+            }
+
+            @Override
+            protected void done() {
+                progressBar.setIndeterminate(false);
+                progressBar.setVisible(false);
+                try {
+                    GenerateResult result = get();
+                    StringBuilder msg = new StringBuilder();
+                    msg.append("Selesai! Berhasil: ").append(result.getSuccessCount())
+                       .append(", Skip: ").append(result.getSkipCount()).append("\n\n");
+                    for (String m : result.getMessages()) {
+                        msg.append(m).append("\n");
+                    }
+                    UIHelper.showSuccess(PayslipPanel.this, msg.toString());
+                    refresh();
+                } catch (Exception ex) {
+                    UIHelper.showError(PayslipPanel.this, "Error: " + ex.getMessage());
+                }
+                statusLabel.setText("Selesai.");
             }
         };
         worker.execute();

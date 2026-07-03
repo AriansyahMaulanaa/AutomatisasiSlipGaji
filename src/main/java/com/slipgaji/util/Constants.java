@@ -79,6 +79,21 @@ public class Constants {
     public static final double DEFAULT_MEAL_ALLOWANCE_KANTOR = 250000;
     public static final double DEFAULT_NIGHT_SHIFT_RATE_KANTOR = 45000;
 
+    // Photo directory
+    public static final String PHOTO_DIR = APP_DIR + File.separator + "output" + File.separator + "foto";
+
+    // Barcode scanner
+    public static final Color SCAN_GUIDE_COLOR = new Color(59, 130, 246, 80); // Soft blue overlay
+    public static final Color SCAN_GUIDE_BORDER = new Color(59, 130, 246);
+    public static final Color SCAN_SUCCESS_COLOR = new Color(16, 185, 129, 60); // Green for detected
+    public static final Color SCAN_SUCCESS_BORDER = new Color(16, 185, 129);
+    public static final Color SCAN_ERROR_COLOR = new Color(239, 68, 68, 60);
+    public static final Color SCAN_ERROR_BORDER = new Color(239, 68, 68);
+
+    // Camera
+    public static final int CAMERA_WIDTH = 640;
+    public static final int CAMERA_HEIGHT = 480;
+
     // UI Constants
     public static final int CARD_RADIUS = 16;
     public static final int BUTTON_RADIUS = 12;
@@ -87,5 +102,6 @@ public class Constants {
     // Ensure directories exist
     public static void ensureDirectories() {
         new File(PDF_DIR).mkdirs();
+        new File(PHOTO_DIR).mkdirs();
     }
 }

@@ -20,7 +20,9 @@ public class MainView extends JFrame {
 
     // Panels
     private DashboardPanel dashboardPanel;
-    private ImportPanel importPanel;
+    private PresensiPanel presensiPanel;
+    private KelolaKaryawanPanel kelolaKaryawanPanel;
+    private HistoryPresensiPanel historyPresensiPanel;
     private PayslipPanel payslipPanel;
     private HistoryPanel historyPanel;
     private SettingsPanel settingsPanel;
@@ -80,12 +82,16 @@ public class MainView extends JFrame {
 
 
         dashboardPanel = new DashboardPanel(this);
-        importPanel = new ImportPanel(this);
+        presensiPanel = new PresensiPanel();
+        kelolaKaryawanPanel = new KelolaKaryawanPanel();
+        historyPresensiPanel = new HistoryPresensiPanel();
         payslipPanel = new PayslipPanel();
         historyPanel = new HistoryPanel();
 
         contentPanel.add(dashboardPanel, "dashboard");
-        contentPanel.add(importPanel, "import");
+        contentPanel.add(presensiPanel, "presensi");
+        contentPanel.add(kelolaKaryawanPanel, "kelola");
+        contentPanel.add(historyPresensiPanel, "riwayat_presensi");
         contentPanel.add(payslipPanel, "payslip");
         contentPanel.add(historyPanel, "history");
 
@@ -164,7 +170,9 @@ public class MainView extends JFrame {
 
         // Menu items
         addMenuItem(sidebar, "dashboard", "Dashboard");
-        addMenuItem(sidebar, "import", "Import Data");
+        addMenuItem(sidebar, "presensi", "Presensi Scan");
+        addMenuItem(sidebar, "kelola", "Kelola Karyawan");
+        addMenuItem(sidebar, "riwayat_presensi", "Riwayat Presensi");
         addMenuItem(sidebar, "payslip", "Slip Gaji");
         addMenuItem(sidebar, "history", "Histori");
 
@@ -245,14 +253,28 @@ public class MainView extends JFrame {
     }
 
     private void switchPanel(String key) {
+        // Stop camera when leaving presensi panel
+        if (!"presensi".equals(key) && presensiPanel != null) {
+            presensiPanel.stopCamera();
+        }
+
         cardLayout.show(contentPanel, key);
 
         // Update sidebar button states
         menuButtons.forEach((k, btn) -> UIHelper.setSidebarButtonActive(btn, k.equals(key)));
 
-        // Refresh panel data
+        // Handle camera lifecycle and refresh data
         switch (key) {
             case "dashboard" -> dashboardPanel.refresh();
+            case "presensi" -> {
+                if (presensiPanel != null) presensiPanel.startCamera();
+            }
+            case "kelola" -> {
+                if (kelolaKaryawanPanel != null) kelolaKaryawanPanel.refresh();
+            }
+            case "riwayat_presensi" -> {
+                if (historyPresensiPanel != null) historyPresensiPanel.refresh();
+            }
             case "payslip" -> payslipPanel.refresh();
             case "history" -> historyPanel.refresh();
         }
@@ -262,7 +284,7 @@ public class MainView extends JFrame {
         switchPanel("payslip");
     }
 
-    public void navigateToImport() {
-        switchPanel("import");
+    public void navigateToPresensi() {
+        switchPanel("presensi");
     }
 }
