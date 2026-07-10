@@ -41,17 +41,20 @@ public class MainView extends JFrame {
 
         // Main layout
         JPanel mainPanel = new JPanel(new BorderLayout());
-        mainPanel.setBackground(Constants.BG_DARK);
+        mainPanel.setBackground(Constants.BG_PAGE);
         setContentPane(mainPanel);
 
         // Sidebar
         JPanel sidebar = createSidebar();
         mainPanel.add(sidebar, BorderLayout.WEST);
 
-        // Content area with padding for floating card effect
+        // Content area with padding
         JPanel contentWrapper = new JPanel(new BorderLayout());
-        contentWrapper.setBackground(Constants.BG_DARK);
+        contentWrapper.setBackground(Constants.BG_PAGE);
         contentWrapper.setBorder(new EmptyBorder(16, 8, 16, 16));
+
+        // Top header bar (global)
+        contentWrapper.add(createTopBar(), BorderLayout.NORTH);
 
         cardLayout = new CardLayout();
         contentPanel = new JPanel(cardLayout) {
@@ -64,7 +67,7 @@ public class MainView extends JFrame {
                 int h = getHeight();
                 int r = Constants.CARD_RADIUS * 2;
 
-                // Shadow
+                // Softer shadow
                 for (int i = 3; i > 0; i--) {
                     g2.setColor(new Color(0, 0, 0, 5 * (4 - i)));
                     g2.fill(new RoundRectangle2D.Double(i, i + 1, w - i * 2, h - i * 2, r, r));
@@ -105,6 +108,19 @@ public class MainView extends JFrame {
 
         // Show dashboard by default
         switchPanel("dashboard");
+    }
+
+    private JPanel createTopBar() {
+        JPanel bar = new JPanel(new BorderLayout());
+        bar.setOpaque(false);
+        bar.setBorder(new EmptyBorder(0, 4, Constants.SPACING_MD, 4));
+
+        JLabel appName = new JLabel(Constants.APP_NAME);
+        appName.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 18));
+        appName.setForeground(Constants.TEXT_PRIMARY);
+
+        bar.add(appName, BorderLayout.WEST);
+        return bar;
     }
 
     private JPanel createSidebar() {
@@ -196,7 +212,7 @@ public class MainView extends JFrame {
         userPanel.setLayout(new BoxLayout(userPanel, BoxLayout.Y_AXIS));
         userPanel.setOpaque(false);
         userPanel.setBorder(new EmptyBorder(16, 20, 16, 20));
-        userPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
+        userPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 130));
 
         JLabel userName = new JLabel(currentUser.getUsername());
         userName.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 13));
@@ -205,25 +221,33 @@ public class MainView extends JFrame {
 
         JLabel roleLabel = new JLabel(currentUser.getRole().getDisplayName());
         roleLabel.setFont(Constants.FONT_SMALL);
-        roleLabel.setForeground(Constants.PRIMARY);
+        roleLabel.setForeground(Constants.TEXT_SECONDARY);
         roleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JButton logoutBtn = UIHelper.createStyledButton("Logout", Constants.ACCENT_DANGER);
+        JButton logoutBtn = new JButton("  Logout");
+        logoutBtn.setFont(Constants.FONT_BODY);
+        logoutBtn.setForeground(Constants.DANGER);
+        logoutBtn.setBackground(Constants.SIDEBAR_BG);
+        logoutBtn.setBorderPainted(false);
+        logoutBtn.setFocusPainted(false);
+        logoutBtn.setContentAreaFilled(false);
+        logoutBtn.setOpaque(false);
+        logoutBtn.setHorizontalAlignment(SwingConstants.LEFT);
+        logoutBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        logoutBtn.setBorder(new EmptyBorder(6, 0, 0, 0));
         logoutBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
-        logoutBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
-        logoutBtn.setFont(Constants.FONT_SMALL);
         logoutBtn.addActionListener(e -> {
-            if (UIHelper.showConfirm(this, "Yakin ingin logout?")) {
+            if (UIHelper.showConfirm(userPanel, "Yakin ingin logout?")) {
                 AuthController.logout();
                 new LoginView().setVisible(true);
-                this.dispose();
+                dispose();
             }
         });
 
         userPanel.add(userName);
         userPanel.add(Box.createVerticalStrut(3));
         userPanel.add(roleLabel);
-        userPanel.add(Box.createVerticalStrut(10));
+        userPanel.add(Box.createVerticalStrut(8));
         userPanel.add(logoutBtn);
         sidebar.add(userPanel);
 

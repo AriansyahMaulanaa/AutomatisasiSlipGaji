@@ -13,7 +13,9 @@ import com.slipgaji.util.UIHelper;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -23,17 +25,16 @@ import java.util.List;
 public class PayslipPanel extends JPanel {
     private final PayslipController payslipController;
     private final EmailController emailController;
-    
+
     private String currentPeriod = null;
     private List<Payslip> currentPayslips;
-    
+
     private JPanel cardsWrapper;
     private DefaultTableModel tableModel;
     private JTable table;
     private JLabel statusLabel;
     private JProgressBar progressBar;
-    
-    // Menyimpan payslip yang terpilih via popup menu agar tidak bergantung pada table selection
+
     private Payslip popupSelectedPayslip;
 
     public PayslipPanel() {
@@ -45,9 +46,9 @@ public class PayslipPanel extends JPanel {
     private void initUI() {
         setLayout(new BorderLayout(0, 16));
         setOpaque(false);
-        setBorder(new EmptyBorder(24, 32, 24, 32));
+        setBorder(new EmptyBorder(Constants.SPACING_LG, Constants.SPACING_LG + 4,
+                                   Constants.SPACING_LG, Constants.SPACING_LG + 4));
 
-        // Header
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setOpaque(false);
 
@@ -58,13 +59,12 @@ public class PayslipPanel extends JPanel {
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
         actions.setOpaque(false);
-        JButton btnRefresh = UIHelper.createStyledButton("Refresh", Constants.REFRESH_BTN);
+        JButton btnRefresh = UIHelper.createOutlineButton("Refresh");
         btnRefresh.addActionListener(e -> refresh());
         actions.add(btnRefresh);
         headerPanel.add(actions, BorderLayout.EAST);
         add(headerPanel, BorderLayout.NORTH);
 
-        // Center Content
         JPanel centerPanel = new JPanel(new BorderLayout(0, 24));
         centerPanel.setOpaque(false);
 
@@ -74,34 +74,39 @@ public class PayslipPanel extends JPanel {
 
         JPanel tablePanel = new JPanel(new BorderLayout(0, 8));
         tablePanel.setOpaque(false);
-        
+
         JPanel tblOptions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         tblOptions.setOpaque(false);
-        JButton btnGenPresensi = UIHelper.createStyledButton("Generate dari Presensi", new Color(79, 70, 229));
-        btnGenPresensi.addActionListener(e -> generateFromPresensi());
-        JButton btnGen = UIHelper.createStyledButton("Generate Semua", Constants.PRIMARY);
-        btnGen.addActionListener(e -> generateAllPdfs());
-        JButton btnSend = UIHelper.createStyledButton("Kirim Mode Batch", Constants.ACCENT_WARN);
-        btnSend.addActionListener(e -> sendAllEmails());
-        JButton btnDelete = UIHelper.createStyledButton("Hapus", Constants.ACCENT_DANGER);
+
+        JButton btnDelete = makeDestructButton("Hapus");
         btnDelete.addActionListener(e -> deleteSelected());
+
+        JButton btnSend = UIHelper.createOutlineButton("Kirim Mode Batch");
+        btnSend.addActionListener(e -> sendAllEmails());
+
+        JButton btnGen = UIHelper.createOutlineButton("Generate Semua");
+        btnGen.addActionListener(e -> generateAllPdfs());
+
+        JButton btnGenPresensi = UIHelper.createStyledButton("Generate dari Presensi", Constants.ACCENT_ACTION);
+        btnGenPresensi.addActionListener(e -> generateFromPresensi());
+
         tblOptions.add(btnDelete);
         if (AuthController.isManager()) {
             tblOptions.add(btnGenPresensi);
         }
         tblOptions.add(btnGen);
         tblOptions.add(btnSend);
-        
+
         statusLabel = new JLabel("Silahkan pilih periode");
         statusLabel.setForeground(Constants.TEXT_SECONDARY);
-        
+
         JPanel tblTop = new JPanel(new BorderLayout());
         tblTop.setOpaque(false);
         tblTop.add(statusLabel, BorderLayout.WEST);
         tblTop.add(tblOptions, BorderLayout.EAST);
         tablePanel.add(tblTop, BorderLayout.NORTH);
 
-        String[] cols = {"No", "ID", "Nama", "Jabatan", "Gaji", "Status", "Aksi"};
+        String[] cols = {"No", "ID", "Nama", "Jabatan", "Gaji", "Status"};
         tableModel = new DefaultTableModel(cols, 0) {
             @Override public boolean isCellEditable(int row, int column) { return false; }
         };
@@ -110,6 +115,7 @@ public class PayslipPanel extends JPanel {
         table.getColumnModel().getColumn(1).setMinWidth(0);
         table.getColumnModel().getColumn(1).setMaxWidth(0);
         table.getColumnModel().getColumn(1).setPreferredWidth(0);
+        table.getColumnModel().getColumn(5).setCellRenderer(new StatusRenderer());
 
         JPopupMenu popup = new JPopupMenu();
         JMenuItem previewItem = new JMenuItem("Lihat Slip (PDF)");
@@ -122,9 +128,9 @@ public class PayslipPanel extends JPanel {
         editItem.addActionListener(e -> { popupSelectedPayslip = getSelectedPayslip(); editSelected(); });
         JMenuItem deleteItem = new JMenuItem("Hapus Data");
         deleteItem.addActionListener(e -> { popupSelectedPayslip = getSelectedPayslip(); deleteSelected(); });
-        popup.add(previewItem); popup.add(genItem); popup.addSeparator(); popup.add(sendItem); popup.add(editItem); popup.addSeparator(); popup.add(deleteItem);
+        popup.add(previewItem); popup.add(genItem); popup.addSeparator(); popup.add(sendItem); popup.add(editItem);
+        popup.addSeparator(); popup.add(deleteItem);
 
-        // Fix: pastikan baris yang diklik kanan terpilih sebelum popup muncul
         table.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) previewSelected();
@@ -137,9 +143,7 @@ public class PayslipPanel extends JPanel {
             }
             private void handlePopup(MouseEvent e) {
                 int row = table.rowAtPoint(e.getPoint());
-                if (row >= 0) {
-                    table.setRowSelectionInterval(row, row);
-                }
+                if (row >= 0) table.setRowSelectionInterval(row, row);
                 popup.show(e.getComponent(), e.getX(), e.getY());
             }
         });
@@ -148,7 +152,7 @@ public class PayslipPanel extends JPanel {
         scrollPane.setBorder(BorderFactory.createLineBorder(Constants.BORDER_COLOR));
         scrollPane.getViewport().setBackground(Constants.BG_CARD);
         tablePanel.add(scrollPane, BorderLayout.CENTER);
-        
+
         progressBar = new JProgressBar();
         progressBar.setVisible(false);
         progressBar.setStringPainted(true);
@@ -158,15 +162,48 @@ public class PayslipPanel extends JPanel {
         add(centerPanel, BorderLayout.CENTER);
     }
 
+    private JButton makeDestructButton(String text) {
+        JButton btn = new JButton(text) {
+            private float hover = 0f;
+            {
+                addMouseListener(new MouseAdapter() {
+                    @Override public void mouseEntered(MouseEvent e) { hover = 0.12f; repaint(); }
+                    @Override public void mouseExited(MouseEvent e) { hover = 0f; repaint(); }
+                });
+            }
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Constants.FAILED_BG);
+                g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), 10, 10));
+                if (hover > 0) {
+                    g2.setColor(new Color(220, 38, 38, (int)(hover * 60)));
+                    g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), 10, 10));
+                }
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btn.setFont(Constants.FONT_BUTTON);
+        btn.setForeground(Constants.DANGER);
+        btn.setBorderPainted(false);
+        btn.setContentAreaFilled(false);
+        btn.setFocusPainted(false);
+        btn.setOpaque(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setBorder(new EmptyBorder(10, 20, 10, 20));
+        return btn;
+    }
+
     public void refresh() {
         List<PeriodSummary> summaries = DatabaseService.getInstance().getPayslipPeriodSummaries();
-        
+
         cardsWrapper.removeAll();
-        
+
         int cardCount = Math.max(summaries.size(), 1);
         cardsWrapper.setLayout(new GridLayout(1, cardCount, 16, 0));
         cardsWrapper.setPreferredSize(new Dimension(0, 100));
-        
+
         if (summaries.isEmpty()) {
             cardsWrapper.add(createEmptyState());
         } else {
@@ -181,7 +218,7 @@ public class PayslipPanel extends JPanel {
         if (currentPeriod == null && !summaries.isEmpty()) {
             currentPeriod = summaries.get(0).getPeriod();
         }
-        
+
         if (currentPeriod != null) {
             loadPayslips(currentPeriod);
         } else {
@@ -197,9 +234,9 @@ public class PayslipPanel extends JPanel {
                 addMouseListener(new MouseAdapter() {
                     @Override public void mouseEntered(MouseEvent e) { hovered = true; repaint(); }
                     @Override public void mouseExited(MouseEvent e) { hovered = false; repaint(); }
-                    @Override public void mouseClicked(MouseEvent e) { 
+                    @Override public void mouseClicked(MouseEvent e) {
                         currentPeriod = summary.getPeriod();
-                        loadPayslips(summary.getPeriod()); 
+                        loadPayslips(summary.getPeriod());
                     }
                 });
             }
@@ -207,13 +244,12 @@ public class PayslipPanel extends JPanel {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 int r = Constants.CARD_RADIUS * 2;
-                g2.setColor(hovered ? new Color(243, 244, 246) : Constants.BG_CARD);
+                g2.setColor(hovered ? Constants.BG_SURFACE : Constants.BG_CARD);
                 g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), r, r));
-                
                 boolean isActive = currentPeriod != null && currentPeriod.equals(summary.getPeriod());
-                g2.setColor(isActive ? Constants.PRIMARY : Constants.BORDER_COLOR);
+                g2.setColor(isActive ? Constants.ACCENT_BLUE : Constants.BORDER_COLOR);
                 g2.setStroke(new BasicStroke(isActive ? 2f : 1f));
-                g2.draw(new RoundRectangle2D.Double(1, 1, getWidth()-2, getHeight()-2, r, r));
+                g2.draw(new RoundRectangle2D.Double(1, 1, getWidth() - 2, getHeight() - 2, r, r));
                 g2.dispose();
             }
         };
@@ -221,16 +257,29 @@ public class PayslipPanel extends JPanel {
         card.setLayout(new BorderLayout());
         card.setBorder(new EmptyBorder(12, 16, 12, 16));
 
-        JLabel title = new JLabel(summary.getPeriod());
+        JLabel title = new JLabel(summary.getFormattedPeriod());
         title.setFont(Constants.FONT_HEADING);
         title.setForeground(Constants.TEXT_PRIMARY);
         card.add(title, BorderLayout.NORTH);
 
         int pending = summary.getSlipCount() - summary.getEmailSentCount();
-        String body = "<html><span style='color:#6B7280;font-size:11px'>" + summary.getSlipCount() + " Slip Karyawan<br>" 
-                      + UIHelper.formatCurrency(summary.getTotalSalary()) + "<br>"
-                      + (pending == 0 && summary.getSlipCount() > 0 ? "<span style='color:#10B981'>Terkirim</span>" : "<span style='color:#F59E0B'>Pending: " + pending + "</span>")
-                      + "</span></html>";
+        String statusColor;
+        String statusText;
+        if (pending == 0 && summary.getSlipCount() > 0) {
+            statusColor = "#16A34A";
+            statusText = "Terkirim";
+        } else if (pending > 0 && summary.getPdfGeneratedCount() >= summary.getSlipCount()) {
+            statusColor = "#D97706";
+            statusText = "Generated";
+        } else {
+            statusColor = "#64748B";
+            statusText = "Draft";
+        }
+        String body = "<html><span style='color:#64748B;font-size:11px'>"
+                    + summary.getSlipCount() + " Slip Karyawan<br>"
+                    + UIHelper.formatCurrency(summary.getTotalSalary()) + "<br>"
+                    + "<span style='color:" + statusColor + "'>" + statusText + "</span>"
+                    + "</span></html>";
         JLabel detail = new JLabel(body);
         card.add(detail, BorderLayout.CENTER);
         return card;
@@ -242,16 +291,16 @@ public class PayslipPanel extends JPanel {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 int r = Constants.CARD_RADIUS * 2;
-                g2.setColor(new Color(248, 249, 251));
+                g2.setColor(Constants.BG_PAGE);
                 g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), r, r));
-                g2.setColor(new Color(209, 213, 219));
-                g2.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10.0f, new float[]{6f}, 0.0f));
-                g2.draw(new RoundRectangle2D.Double(1, 1, getWidth()-2, getHeight()-2, r, r));
+                g2.setColor(Constants.BORDER_COLOR);
+                g2.setStroke(new BasicStroke(1f));
+                g2.draw(new RoundRectangle2D.Double(1, 1, getWidth() - 2, getHeight() - 2, r, r));
                 g2.dispose();
             }
         };
         card.setLayout(new GridBagLayout());
-        JLabel lbl = new JLabel("<html><center><span style='color:#9CA3AF;font-size:11px'>Belum ada data ekstra</span></center></html>");
+        JLabel lbl = new JLabel("<html><center><span style='color:#94A3B8;font-size:11px'>Belum ada data slip untuk ditampilkan</span></center></html>");
         card.add(lbl);
         return card;
     }
@@ -262,7 +311,8 @@ public class PayslipPanel extends JPanel {
         int no = 1;
         for (Payslip p : currentPayslips) {
             String status = (p.getPdfPath() != null && !p.getPdfPath().isEmpty()) ? "Generated" : "Draft";
-            tableModel.addRow(new Object[]{ no++, p.getId(), p.getEmployeeName(), p.getPosition(), UIHelper.formatCurrency(p.getNetSalary()), status, "Klik Kanan" });
+            tableModel.addRow(new Object[]{ no++, p.getId(), p.getEmployeeName(), p.getPosition(),
+                                           UIHelper.formatCurrency(p.getNetSalary()), status });
         }
         statusLabel.setText("Data Slip: " + period + " (" + currentPayslips.size() + " data)");
         cardsWrapper.repaint();
@@ -298,8 +348,8 @@ public class PayslipPanel extends JPanel {
         Payslip payslip = getSelectedPayslip();
         if (payslip == null) return;
         try {
-            String path = payslipController.generatePdf(payslip);
-            UIHelper.showSuccess(this, "PDF berhasil digenerate:\n" + path);
+            payslipController.generatePdf(payslip);
+            UIHelper.showSuccess(this, "PDF berhasil digenerate");
             loadPayslips(currentPeriod);
         } catch (Exception ex) {
             UIHelper.showError(this, "Gagal generate PDF: " + ex.getMessage());
@@ -309,29 +359,22 @@ public class PayslipPanel extends JPanel {
     private void editSelected() {
         Payslip payslip = getSelectedPayslip();
         if (payslip == null) return;
-
         EditPayslipDialog dialog = new EditPayslipDialog(SwingUtilities.getWindowAncestor(this), payslip);
         dialog.setVisible(true);
-        if (dialog.isSaved()) {
-            loadPayslips(currentPeriod);
-        }
+        if (dialog.isSaved()) loadPayslips(currentPeriod);
     }
 
     private void deleteSelected() {
         Payslip payslip = popupSelectedPayslip;
-        if (payslip == null) {
-            payslip = getSelectedPayslip();
-        }
+        if (payslip == null) payslip = getSelectedPayslip();
         if (payslip == null) return;
-        
-        if (UIHelper.showConfirm(this, "Apakah Anda yakin ingin menghapus data slip gaji untuk \n" + payslip.getEmployeeName() + " ?")) {
-            boolean deleted = payslipController.deletePayslip(payslip.getId());
-            if (deleted) {
+        if (UIHelper.showConfirm(this, "Hapus data slip gaji untuk\n" + payslip.getEmployeeName() + "?")) {
+            if (payslipController.deletePayslip(payslip.getId())) {
                 popupSelectedPayslip = null;
                 refresh();
                 UIHelper.showSuccess(this, "Data slip gaji berhasil dihapus");
             } else {
-                UIHelper.showError(this, "Gagal menghapus data slip gaji. Silakan cek database atau hubungi admin.");
+                UIHelper.showError(this, "Gagal menghapus data slip gaji");
             }
         }
     }
@@ -348,7 +391,7 @@ public class PayslipPanel extends JPanel {
             @Override protected void done() {
                 try {
                     get();
-                    UIHelper.showSuccess(PayslipPanel.this, "Email berhasil dikirim ke " + payslip.getEmployeeEmail());
+                    UIHelper.showSuccess(PayslipPanel.this, "Email berhasil dikirim");
                     loadPayslips(currentPeriod);
                 } catch (Exception ex) {
                     UIHelper.showError(PayslipPanel.this, "Gagal mengirim email:\n" + ex.getCause().getMessage());
@@ -397,7 +440,9 @@ public class PayslipPanel extends JPanel {
             UIHelper.showError(this, "Tidak ada slip gaji.");
             return;
         }
-        if (!UIHelper.showConfirm(this, "Kirim " + currentPayslips.size() + " slip gaji ke email masing-masing karyawan?\n\nSetiap email hanya berisi slip masing-masing karyawan.")) return;
+        if (!UIHelper.showConfirm(this, "Kirim " + currentPayslips.size()
+                + " slip gaji ke email masing-masing karyawan?\n\nSetiap email hanya berisi slip masing-masing karyawan."))
+            return;
         progressBar.setVisible(true);
         progressBar.setValue(0);
         progressBar.setMaximum(currentPayslips.size());
@@ -412,16 +457,17 @@ public class PayslipPanel extends JPanel {
                             statusLabel.setText(icon + " " + name + " (" + current + "/" + total + ")");
                         });
                     }
-                    @Override public void onComplete(int success, int failed, java.util.List<String> failedNames, java.util.List<String> failedErrors) {
+                    @Override public void onComplete(int success, int failed, java.util.List<String> failedNames,
+                                                     java.util.List<String> failedErrors) {
                         SwingUtilities.invokeLater(() -> {
-                            String msg = "Pengiriman selesai!\n✅ Berhasil: " + success + "\n❌ Gagal: " + failed;
+                            String msg = "Pengiriman selesai!\n\u2705 Berhasil: " + success + "\n\u274C Gagal: " + failed;
                             if (failed > 0) {
                                 StringBuilder detail = new StringBuilder("\n\nDaftar gagal:\n");
                                 for (int i = 0; i < failedNames.size(); i++) {
-                                    detail.append("• ").append(failedNames.get(i))
+                                    detail.append("\u2022 ").append(failedNames.get(i))
                                           .append(": ").append(failedErrors.get(i)).append("\n");
                                 }
-                                UIHelper.showError(PayslipPanel.this, msg + detail.toString());
+                                UIHelper.showError(PayslipPanel.this, msg + detail);
                             } else {
                                 UIHelper.showSuccess(PayslipPanel.this, msg);
                             }
@@ -443,14 +489,8 @@ public class PayslipPanel extends JPanel {
     }
 
     private void generateFromPresensi() {
-        String period = javax.swing.JOptionPane.showInputDialog(this,
-                "Masukkan periode (yyyy-MM):", "Generate dari Presensi",
-                javax.swing.JOptionPane.PLAIN_MESSAGE);
-        if (period == null || period.trim().isEmpty()) return;
-        if (!period.matches("\\d{4}-\\d{2}")) {
-            UIHelper.showError(this, "Format periode tidak valid. Gunakan yyyy-MM (contoh: 2026-06)");
-            return;
-        }
+        String period = new PeriodePickerDialog(SwingUtilities.getWindowAncestor(this)).showDialog();
+        if (period == null) return;
 
         progressBar.setVisible(true);
         progressBar.setValue(0);
@@ -461,9 +501,8 @@ public class PayslipPanel extends JPanel {
             @Override
             protected GenerateResult doInBackground() {
                 PresensiToPayslipController controller = new PresensiToPayslipController();
-                return controller.generatePayslipsFromPresensi(period.trim());
+                return controller.generatePayslipsFromPresensi(period);
             }
-
             @Override
             protected void done() {
                 progressBar.setIndeterminate(false);
@@ -476,8 +515,9 @@ public class PayslipPanel extends JPanel {
                     for (String m : result.getMessages()) {
                         msg.append(m).append("\n");
                     }
-                    UIHelper.showSuccess(PayslipPanel.this, msg.toString());
+                    currentPeriod = period;
                     refresh();
+                    UIHelper.showSuccess(PayslipPanel.this, msg.toString());
                 } catch (Exception ex) {
                     UIHelper.showError(PayslipPanel.this, "Error: " + ex.getMessage());
                 }
@@ -485,5 +525,21 @@ public class PayslipPanel extends JPanel {
             }
         };
         worker.execute();
+    }
+
+    private static class StatusRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int row, int col) {
+            JLabel c = (JLabel) super.getTableCellRendererComponent(t, v, sel, foc, row, col);
+            if (v == null) return c;
+            String s = v.toString();
+            c.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 11));
+            switch (s) {
+                case "Draft" -> c.setForeground(Constants.TEXT_LABEL);
+                case "Generated" -> c.setForeground(Constants.WARN_TEXT);
+                default -> c.setForeground(Constants.SUCCESS);
+            }
+            return c;
+        }
     }
 }

@@ -38,6 +38,20 @@ CREATE TABLE IF NOT EXISTS employees (
     INDEX idx_employees_position (position)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ===================== PRESENSI =====================
+CREATE TABLE IF NOT EXISTS presensi (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    employee_id INT NOT NULL,
+    tanggal DATE NOT NULL,
+    jam TIME NOT NULL,
+    jenis_presensi VARCHAR(10) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_presensi_employee (employee_id),
+    INDEX idx_presensi_tanggal (tanggal),
+    INDEX idx_presensi_employee_tanggal (employee_id, tanggal),
+    FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ===================== PAYSLIPS =====================
 CREATE TABLE IF NOT EXISTS payslips (
     id INT AUTO_INCREMENT PRIMARY KEY,

@@ -92,6 +92,42 @@ public class UIHelper {
         return button;
     }
 
+    public static JButton createOutlineButton(String text) {
+        JButton btn = new JButton(text) {
+            private float hover = 0f;
+            {
+                addMouseListener(new MouseAdapter() {
+                    @Override public void mouseEntered(MouseEvent e) { hover = 0.06f; repaint(); }
+                    @Override public void mouseExited(MouseEvent e) { hover = 0f; repaint(); }
+                });
+            }
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Constants.BG_CARD);
+                g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), 10, 10));
+                if (hover > 0) {
+                    g2.setColor(new Color(51, 65, 85, (int)(hover * 255)));
+                    g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), 10, 10));
+                }
+                g2.setColor(Constants.OUTLINE_TEXT);
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.draw(new RoundRectangle2D.Double(0, 0, getWidth() - 1, getHeight() - 1, 10, 10));
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btn.setFont(Constants.FONT_BUTTON);
+        btn.setForeground(Constants.OUTLINE_TEXT);
+        btn.setBorderPainted(false);
+        btn.setContentAreaFilled(false);
+        btn.setFocusPainted(false);
+        btn.setOpaque(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setBorder(new EmptyBorder(10, 20, 10, 20));
+        return btn;
+    }
+
     // ======================== SIDEBAR ========================
 
     public static JButton createSidebarButton(String text, String icon) {
@@ -131,7 +167,7 @@ public class UIHelper {
                     g2.setColor(Constants.SIDEBAR_ACTIVE_BG);
                     g2.fill(new RoundRectangle2D.Double(margin, 2, w - margin * 2, h - 4, 12, 12));
                     // Left accent bar
-                    g2.setColor(Constants.PRIMARY);
+                    g2.setColor(Constants.ACCENT_BLUE);
                     g2.fill(new RoundRectangle2D.Double(margin, 6, 4, h - 12, 4, 4));
                 } else if (hovered) {
                     g2.setColor(new Color(243, 244, 246));
@@ -157,9 +193,8 @@ public class UIHelper {
     }
 
     public static void setSidebarButtonActive(JButton button, boolean active) {
-        // Call the internal setActive method via reflection-safe approach
         if (active) {
-            button.setForeground(Constants.PRIMARY);
+            button.setForeground(Constants.BADGE_TEXT);
             button.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 13));
         } else {
             button.setForeground(Constants.TEXT_SECONDARY);
@@ -568,15 +603,25 @@ public class UIHelper {
         BufferedImage bi = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2 = bi.createGraphics();
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.setColor(new Color(229, 231, 235));
+
+        GradientPaint gp = new GradientPaint(0, 0, Constants.BG_BLUE_SOFT, size, size, Constants.PRIMARY_LIGHT);
+        g2.setPaint(gp);
         g2.fill(new java.awt.geom.Ellipse2D.Double(0, 0, size, size));
-        g2.setColor(new Color(156, 163, 175));
-        g2.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, size / 3));
-        FontMetrics fm = g2.getFontMetrics();
-        String init = "?";
-        int tx = (size - fm.stringWidth(init)) / 2;
-        int ty = (size - fm.getHeight()) / 2 + fm.getAscent();
-        g2.drawString(init, tx, ty);
+
+        g2.setColor(new Color(148, 163, 184, 180));
+        g2.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+        int cx = size / 2, cy = size / 2 - size / 8;
+        int headR = size / 7;
+        g2.drawOval(cx - headR, cy - headR, headR * 2, headR * 2);
+
+        int shoulderW = size / 4;
+        int bodyTop = cy + headR;
+        int bodyBottom = size - size / 6;
+        g2.drawLine(cx - shoulderW, bodyTop + size / 12, cx + shoulderW, bodyTop + size / 12);
+        g2.drawLine(cx - shoulderW, bodyTop + size / 12, cx - shoulderW, bodyBottom);
+        g2.drawLine(cx + shoulderW, bodyTop + size / 12, cx + shoulderW, bodyBottom);
+
         g2.dispose();
         return new ImageIcon(bi);
     }

@@ -128,6 +128,41 @@ public class PresensiDAO {
         return list;
     }
 
+    public List<Object[]> getAggregatedHistoryByDate(LocalDate date) {
+        List<Object[]> list = new ArrayList<>();
+        String sql = "SELECT p.employee_id, e.employee_id AS emp_code, e.name AS emp_name, e.position, " +
+                "p.tanggal, " +
+                "MIN(CASE WHEN p.jenis_presensi = 'Masuk' THEN p.jam END) AS jam_masuk, " +
+                "MAX(CASE WHEN p.jenis_presensi = 'Pulang' THEN p.jam END) AS jam_pulang " +
+                "FROM presensi p " +
+                "JOIN employees e ON p.employee_id = e.id " +
+                "WHERE p.tanggal = ? " +
+                "GROUP BY p.employee_id, p.tanggal, e.employee_id, e.name, e.position " +
+                "ORDER BY e.name";
+        try (Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDate(1, Date.valueOf(date));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Object[] row = new Object[7];
+                    row[0] = rs.getInt("employee_id");
+                    row[1] = rs.getString("emp_code");
+                    row[2] = rs.getString("emp_name");
+                    row[3] = rs.getString("position");
+                    row[4] = rs.getDate("tanggal").toLocalDate();
+                    Time tm = rs.getTime("jam_masuk");
+                    row[5] = tm != null ? tm.toLocalTime() : null;
+                    Time tp = rs.getTime("jam_pulang");
+                    row[6] = tp != null ? tp.toLocalTime() : null;
+                    list.add(row);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
     public int getCountByDateRange(LocalDate start, LocalDate end, int employeeId) {
         String sql = "SELECT COUNT(DISTINCT tanggal) FROM presensi WHERE employee_id = ? AND tanggal BETWEEN ? AND ? AND jenis_presensi = 'Masuk'";
         try (Connection conn = db.getConnection();
