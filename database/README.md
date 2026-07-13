@@ -24,21 +24,39 @@ Buka terminal / command prompt, lalu jalankan:
 mysql -u root -p < database/schema.sql
 ```
 
-Atau jika ingin login dulu:
+Atau kalau ingin login dulu:
 
 ```bash
 mysql -u root -p
 ```
 
-Kemudian jalankan:
+lalu di dalam MySQL prompt:
 
 ```sql
-SOURCE /path/to/project/database/schema.sql;
+SOURCE /absolute/path/AutomatisasiSlipGaji/database/schema.sql;
 ```
 
-### 2. Konfigurasi Koneksi Database (WAJIB)
+### 2. Konfigurasi Koneksi Database
 
-Aplikasi secara default akan terhubung ke:
+Aplikasi membaca konfigurasi dari file **`config.properties`** di root project. File ini **di-.gitignore** (tidak ikut ke repo) supaya credential Anda tidak ke-commit.
+
+Copy dari template:
+
+```bash
+cp config.properties.example config.properties
+```
+
+Isi dengan credential MariaDB lokal:
+
+```properties
+db_host=localhost
+db_port=3306
+db_name=slipgaji_db
+db_user=root
+db_password=YOUR_MARIADB_PASSWORD
+```
+
+Kalau `config.properties` tidak dibuat, aplikasi akan pakai default dari `com.slipgaji.util.Constants`:
 
 | Konfigurasi | Nilai Default |
 |-------------|---------------|
@@ -46,62 +64,61 @@ Aplikasi secara default akan terhubung ke:
 | Port        | `3306`        |
 | Database    | `slipgaji_db` |
 | User        | `root`        |
-| Password    | `[REDACTED]`   |
+| Password    | *(kosong)*    |
 
-**⚠️ PENTING:** Password database (`DB_PASS`) adalah **password MariaDB/MySQL laptop Anda**, bukan password login aplikasi. Nilai `[REDACTED]` hanya berlaku di laptop pengembang. Setiap laptop bisa berbeda.
-
-Jika password MariaDB Anda berbeda, edit file:
-
-```
-src/main/java/com/slipgaji/util/Constants.java
-```
-
-Cari baris berikut dan sesuaikan `DB_PASS` dengan password MariaDB Anda:
-
-```java
-public static final String DB_HOST = "localhost";
-public static final int DB_PORT = 3306;
-public static final String DB_NAME = "slipgaji_db";
-public static final String DB_USER = "root";
-public static final String DB_PASS = "[REDACTED]";   // ← ganti ini!
-```
+> **PENTING:** Password database ≠ password login aplikasi.
+> - Password database (`db_password` di `config.properties`) = password MariaDB/MySQL laptop Anda.
+> - Password login aplikasi (`spv123` / `manager123`) sama di semua laptop, sudah di-seed dari `schema.sql`.
 
 ### 3. Jalankan Aplikasi
 
-Setelah database terimport, jalankan aplikasi:
+Setelah database di-import, jalankan aplikasi dari root project:
 
 ```bash
 mvn compile exec:java -Dexec.mainClass="com.slipgaji.App"
 ```
 
-Atau buka project di **VS Code** → klik tombol Run (App) di bagian atas.
+Atau build fat JAR dan jalankan langsung:
+
+```bash
+mvn clean package -DskipTests
+java -jar target/SlipGajiPro-1.1.0.jar
+```
+
+Atau via VS Code: buka folder → tekan `F5` (config di `.vscode/launch.json`).
 
 ### 4. Login Aplikasi
 
-**Ini adalah password login aplikasi — SAMA di semua laptop** (sudah di-set di `schema.sql`).
+Kredensial default (sama di semua laptop, sudah ada di `schema.sql`):
 
-| Role    | Username   | Password      | Akses                     |
-|---------|------------|---------------|---------------------------|
-| SPV     | `spv`      | `spv123`      | Dashboard, Import, Slip Gaji, Histori |
-| Manager | `manager`  | `manager123`  | Semua menu + Pengaturan   |
+| Role    | Username   | Password      | Akses                                     |
+|---------|------------|---------------|-------------------------------------------|
+| SPV     | `spv`      | `spv123`      | Dashboard, Presensi Scan, Karyawan, Slip Gaji, Histori |
+| Manager | `manager`  | `manager123`  | Semua menu SPV + **Pengaturan**           |
 
-> **Jangan bingung:** password login aplikasi (`spv123` / `manager123`) **berbeda** dengan password database MariaDB yang dikonfigurasi di `Constants.java`.
+> Ganti password default setelah instalasi produksi.
 
 ## Struktur Tabel
 
-- **users** — Data login pengguna (SPV / Manager)
-- **employees** — Data karyawan hasil import, dilengkapi `employment_type` (TETAP/PKWT/KANTOR)
-- **payslips** — Data slip gaji per periode, dilengkapi `night_shift_incentive` & `is_night_shift`
-- **send_history** — Riwayat pengiriman email
-- **settings** — Konfigurasi aplikasi (SMTP, parameter gaji per employment type)
-- **schema_version** — Tracking migrasi database (dikelola otomatis oleh aplikasi)
+| Tabel            | Isi                                                           |
+|------------------|----------------------------------------------------------------|
+| `users`          | Data login (SPV / Manager), password BCrypt                    |
+| `employees`      | Data karyawan lengkap (nama, jabatan, gaji, foto, barcode, dst)|
+| `presensi`       | Log presensi harian (masuk / pulang) hasil scan barcode        |
+| `payslips`       | Data slip gaji per periode + PDF path                          |
+| `send_history`   | Riwayat pengiriman email (sukses / gagal + error message)      |
+| `settings`       | Konfigurasi (SMTP, parameter gaji per employment type)         |
+| `schema_version` | Tracking migrasi database (dikelola otomatis oleh aplikasi)    |
 
-> **Catatan:** Schema ini sudah **lengkap dan siap pakai**. Semua kolom yang dibutuhkan oleh aplikasi (termasuk `employment_type`, `night_shift_incentive`, `is_night_shift`) sudah ada langsung di CREATE TABLE — tidak perlu migrasi tambahan untuk instalasi baru.
+Semua kolom yang dibutuhkan aplikasi (`employment_type`, `birth_date`, `photo`, `barcode`, `status`, `night_shift_incentive`, `is_night_shift`) sudah ada langsung di `CREATE TABLE`. Untuk database lama yang belum punya kolom-kolom ini, aplikasi otomatis menambah via runtime migration.
 
 ## Index
 
-Beberapa index telah ditambahkan untuk optimasi query:
-- `idx_payslips_period` — mempercepat filter berdasarkan periode
-- `idx_payslips_employee_period` — mempercepat pencarian slip per employee+periode
-- `idx_send_history_period_status` — mempercepat hitung email sukses/gagal per periode
-- Foreign key dengan `ON DELETE CASCADE` — data terkait otomatis terhapus
+Index yang ditambahkan untuk optimasi query:
+
+- `idx_users_role`
+- `idx_employees_department`, `idx_employees_position`, `idx_employees_barcode`
+- `idx_presensi_employee`, `idx_presensi_tanggal`, `idx_presensi_employee_tanggal`
+- `idx_payslips_employee`, `idx_payslips_period`, `idx_payslips_employee_period`
+- `idx_send_history_payslip`, `idx_send_history_period`, `idx_send_history_status`, `idx_send_history_period_status`
+- Foreign key dengan `ON DELETE CASCADE` — data terkait (presensi, payslip, send_history) otomatis terhapus kalau parent-nya dihapus
