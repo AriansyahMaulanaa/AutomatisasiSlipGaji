@@ -1,16 +1,20 @@
 package com.slipgaji.view;
 
 import com.slipgaji.dao.PresensiDAO;
-import com.slipgaji.util.Constants;
-import com.slipgaji.util.UIHelper;
+import com.slipgaji.ui.components.AppButton;
+import com.slipgaji.ui.components.AppCard;
+import com.slipgaji.ui.components.StatusBadge;
+import com.slipgaji.ui.theme.UIColors;
+import com.slipgaji.ui.theme.UIFonts;
+import com.slipgaji.ui.theme.UIMetrics;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellRenderer;
 import java.awt.*;
-import java.awt.geom.RoundRectangle2D;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -18,13 +22,19 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * HistoryPresensiPanel — daftar presensi per tanggal.
+ *
+ * <p>Redesign: badge "Sedang Shift" → Warning muted, "Belum pulang" → Neutral tag,
+ * "Selesai" → Success. Tombol Cari = Primary, Hari Ini = Secondary.
+ */
 public class HistoryPresensiPanel extends JPanel {
 
     private final PresensiDAO presensiDAO = new PresensiDAO();
     private DefaultTableModel tableModel;
     private JTable table;
     private JLabel statusLabel;
-    private javax.swing.JSpinner dateSpinner;
+    private JSpinner dateSpinner;
 
     private enum StatusPresensi { SEDANG_SHIFT, SELESAI }
 
@@ -33,96 +43,86 @@ public class HistoryPresensiPanel extends JPanel {
     }
 
     private void initUI() {
-        setLayout(new BorderLayout(0, 12));
-        setOpaque(false);
-        setBorder(new EmptyBorder(Constants.SPACING_MD, Constants.SPACING_LG - 4,
-                                   Constants.SPACING_MD, Constants.SPACING_LG - 4));
+        setLayout(new BorderLayout(0, UIMetrics.SPACE_16));
+        setBackground(UIColors.NEUTRAL_50);
+        setBorder(new EmptyBorder(UIMetrics.SPACE_24, UIMetrics.SPACE_24,
+                                   UIMetrics.SPACE_24, UIMetrics.SPACE_24));
 
+        add(createHeader(), BorderLayout.NORTH);
+        add(createTableCard(), BorderLayout.CENTER);
+    }
+
+    private JPanel createHeader() {
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
+
         JLabel title = new JLabel("Riwayat Presensi");
-        title.setFont(Constants.FONT_TITLE);
-        title.setForeground(Constants.TEXT_PRIMARY);
+        title.setFont(UIFonts.H1);
+        title.setForeground(UIColors.NEUTRAL_800);
         header.add(title, BorderLayout.WEST);
 
-        JPanel controls = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        JPanel controls = new JPanel(new FlowLayout(FlowLayout.RIGHT, UIMetrics.SPACE_8, 0));
         controls.setOpaque(false);
 
-        dateSpinner = new javax.swing.JSpinner(new javax.swing.SpinnerDateModel());
+        dateSpinner = new JSpinner(new SpinnerDateModel());
         JSpinner.DateEditor de = new JSpinner.DateEditor(dateSpinner, "yyyy-MM-dd");
         dateSpinner.setEditor(de);
-        dateSpinner.setValue(java.util.Date.from(java.time.LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()));
-        dateSpinner.setPreferredSize(new Dimension(140, 36));
-        dateSpinner.setFont(Constants.FONT_BODY);
+        dateSpinner.setValue(java.util.Date.from(LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()));
+        dateSpinner.setPreferredSize(new Dimension(150, UIMetrics.INPUT_HEIGHT));
+        dateSpinner.setFont(UIFonts.BODY);
 
-        JButton btnHariIni = UIHelper.createOutlineButton("Hari Ini");
+        JButton btnHariIni = AppButton.secondary("Hari Ini");
         btnHariIni.addActionListener(e -> {
-            dateSpinner.setValue(java.util.Date.from(java.time.LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()));
+            dateSpinner.setValue(java.util.Date.from(LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()));
             refresh();
         });
 
-        JButton btnCari = UIHelper.createStyledButton("Cari", Constants.ACCENT_ACTION);
+        JButton btnCari = AppButton.primary("Cari");
         btnCari.addActionListener(e -> refresh());
 
         controls.add(dateSpinner);
         controls.add(btnHariIni);
         controls.add(btnCari);
         header.add(controls, BorderLayout.EAST);
-        add(header, BorderLayout.NORTH);
+        return header;
+    }
+
+    private AppCard createTableCard() {
+        AppCard card = new AppCard();
+
+        JPanel wrap = new JPanel(new BorderLayout(0, UIMetrics.SPACE_8));
+        wrap.setOpaque(false);
+
+        statusLabel = new JLabel("Pilih tanggal dan klik Cari");
+        statusLabel.setFont(UIFonts.LABEL);
+        statusLabel.setForeground(UIColors.NEUTRAL_600);
+        wrap.add(statusLabel, BorderLayout.NORTH);
 
         String[] cols = {"No", "ID Karyawan", "Nama", "Jabatan", "Jam Masuk", "Jam Pulang", "Total Jam", "Status"};
         tableModel = new DefaultTableModel(cols, 0) {
             @Override public boolean isCellEditable(int row, int column) { return false; }
         };
         table = new JTable(tableModel);
-        table.setRowHeight(44);
+        styleTable(table);
 
         table.getColumnModel().getColumn(0).setMaxWidth(50);
         table.getColumnModel().getColumn(1).setPreferredWidth(100);
         table.getColumnModel().getColumn(2).setPreferredWidth(180);
         table.getColumnModel().getColumn(3).setPreferredWidth(120);
         table.getColumnModel().getColumn(4).setPreferredWidth(90);
-        table.getColumnModel().getColumn(5).setPreferredWidth(90);
+        table.getColumnModel().getColumn(5).setPreferredWidth(110);
         table.getColumnModel().getColumn(6).setPreferredWidth(80);
-        table.getColumnModel().getColumn(7).setPreferredWidth(110);
-
-        UIHelper.styleTable(table);
-
-        table.getColumnModel().getColumn(7).setCellRenderer(new StatusBadgeRenderer());
+        table.getColumnModel().getColumn(7).setPreferredWidth(130);
+        table.getColumnModel().getColumn(7).setCellRenderer(new StatusRenderer());
+        table.getColumnModel().getColumn(5).setCellRenderer(new JamPulangRenderer());
 
         JScrollPane scrollPane = new JScrollPane(table);
-        scrollPane.setBorder(BorderFactory.createLineBorder(Constants.BORDER_COLOR));
-        scrollPane.getViewport().setBackground(Constants.BG_CARD);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        scrollPane.getViewport().setBackground(UIColors.NEUTRAL_0);
+        wrap.add(scrollPane, BorderLayout.CENTER);
 
-        statusLabel = new JLabel("Pilih tanggal dan klik Cari");
-        statusLabel.setFont(Constants.FONT_BODY);
-        statusLabel.setForeground(Constants.TEXT_LABEL);
-        statusLabel.setBorder(new EmptyBorder(0, 4, Constants.SPACING_SM + 4, 4));
-
-        JPanel wrapper = new JPanel(new BorderLayout()) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                int w = getWidth(), h = getHeight();
-                g2.setColor(new Color(0, 0, 0, 15));
-                g2.fill(new RoundRectangle2D.Double(0, 1, w, h - 1, 12, 12));
-                g2.setColor(Constants.BG_CARD);
-                g2.fill(new RoundRectangle2D.Double(0, 0, w, h, 12, 12));
-                g2.setColor(Constants.BORDER_COLOR);
-                g2.setStroke(new BasicStroke(1f));
-                g2.draw(new RoundRectangle2D.Double(0, 0, w - 1, h - 1, 12, 12));
-                g2.dispose();
-            }
-        };
-        wrapper.setOpaque(false);
-        wrapper.setBorder(new EmptyBorder(Constants.SPACING_SM + 8, Constants.SPACING_LG,
-                                          Constants.SPACING_SM + 8, Constants.SPACING_LG));
-
-        wrapper.add(statusLabel, BorderLayout.NORTH);
-        wrapper.add(scrollPane, BorderLayout.CENTER);
-
-        add(wrapper, BorderLayout.CENTER);
+        card.addBody(wrap);
+        return card;
     }
 
     public void refresh() {
@@ -137,10 +137,10 @@ public class HistoryPresensiPanel extends JPanel {
             LocalTime jamPulang = (LocalTime) r[6];
 
             String jamMasukStr = jamMasuk != null
-                    ? jamMasuk.format(DateTimeFormatter.ofPattern("HH:mm")) : "-";
+                    ? jamMasuk.format(DateTimeFormatter.ofPattern("HH:mm")) : "—";
             String jamPulangStr = jamPulang != null
                     ? jamPulang.format(DateTimeFormatter.ofPattern("HH:mm")) : "Belum pulang";
-            String totalJam = "-";
+            String totalJam = "—";
             if (jamMasuk != null && jamPulang != null) {
                 long diff = Duration.between(jamMasuk, jamPulang).toMinutes();
                 totalJam = (diff / 60) + "j " + (diff % 60) + "m";
@@ -151,14 +151,7 @@ public class HistoryPresensiPanel extends JPanel {
             if (jamMasuk == null) continue;
 
             tableModel.addRow(new Object[]{
-                    no++,
-                    r[1],
-                    r[2],
-                    r[3],
-                    jamMasukStr,
-                    jamPulangStr,
-                    totalJam,
-                    status
+                    no++, r[1], r[2], r[3], jamMasukStr, jamPulangStr, totalJam, status
             });
         }
         String dateStr = date.format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy", new Locale("id", "ID")));
@@ -169,75 +162,92 @@ public class HistoryPresensiPanel extends JPanel {
         }
     }
 
-    private static class StatusBadgeRenderer implements TableCellRenderer {
-        private final JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 0)) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                int w = getWidth(), h = getHeight();
-                g2.setColor(bg);
-                g2.fill(new RoundRectangle2D.Double(0, 0, w, h, h, h));
-                g2.setColor(border);
-                g2.setStroke(new BasicStroke(1f));
-                g2.draw(new RoundRectangle2D.Double(0, 0, w - 1, h - 1, h, h));
-                g2.dispose();
-                super.paintComponent(g);
-            }
-        };
-        private final JLabel dot = new JLabel();
-        private final JLabel label = new JLabel();
-        private Color bg, border, dotColor, textColor;
-
-        StatusBadgeRenderer() {
-            panel.setOpaque(false);
-            panel.setBorder(new EmptyBorder(2, 10, 2, 10));
-            JPanel d = new JPanel() {
-                @Override
-                protected void paintComponent(Graphics g) {
-                    Graphics2D g2 = (Graphics2D) g.create();
-                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    g2.setColor(dotColor);
-                    g2.fillOval(0, 0, 7, 7);
-                    g2.dispose();
-                }
-            };
-            d.setOpaque(false);
-            d.setPreferredSize(new Dimension(7, 7));
-
-            label.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 11));
-            label.setForeground(textColor);
-
-            panel.add(d);
-            panel.add(label);
-        }
-
+    // ============================================================
+    // Renderers
+    // ============================================================
+    private static class StatusRenderer implements TableCellRenderer {
         @Override
         public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int row, int col) {
-            if (v == null) return new JLabel("");
+            JPanel wrap = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+            wrap.setOpaque(true);
+            wrap.setBackground(sel ? UIColors.PRIMARY_50 : UIColors.NEUTRAL_0);
+
+            if (v == null) return wrap;
             if (v instanceof String && ((String) v).startsWith("Belum")) {
                 JLabel empty = new JLabel((String) v, SwingConstants.CENTER);
-                empty.setFont(Constants.FONT_BODY);
-                empty.setForeground(Constants.TEXT_MUTED);
+                empty.setFont(UIFonts.BODY);
+                empty.setForeground(UIColors.NEUTRAL_400);
+                empty.setBackground(UIColors.NEUTRAL_0);
+                empty.setOpaque(true);
                 return empty;
             }
             StatusPresensi s = (StatusPresensi) v;
             if (s == StatusPresensi.SEDANG_SHIFT) {
-                bg = Constants.WARN_BG;
-                border = Constants.WARN_TEXT;
-                dotColor = Constants.WARN_TEXT;
-                textColor = Constants.WARN_TEXT;
-                label.setText("Sedang Shift");
+                wrap.add(new StatusBadge("Sedang Shift", StatusBadge.Tone.WARNING));
             } else {
-                bg = Constants.SUCCESS_BG;
-                border = Constants.SUCCESS;
-                dotColor = Constants.SUCCESS;
-                textColor = Constants.SUCCESS;
-                label.setText("Selesai");
+                wrap.add(new StatusBadge("Selesai", StatusBadge.Tone.SUCCESS));
             }
-            label.setForeground(textColor);
-            panel.repaint();
-            return panel;
+            return wrap;
         }
+    }
+
+    private static class JamPulangRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int row, int col) {
+            super.getTableCellRendererComponent(t, v, sel, foc, row, col);
+            if (v != null && "Belum pulang".equals(v.toString())) {
+                setForeground(UIColors.NEUTRAL_400);
+                setFont(UIFonts.CAPTION);
+            } else {
+                setForeground(sel ? UIColors.NEUTRAL_800 : UIColors.NEUTRAL_800);
+                setFont(UIFonts.BODY);
+            }
+            setBackground(sel ? UIColors.PRIMARY_50 : UIColors.NEUTRAL_0);
+            setHorizontalAlignment(SwingConstants.CENTER);
+            setBorder(new EmptyBorder(0, 12, 0, 12));
+            return this;
+        }
+    }
+
+    // ============================================================
+    // Table styling
+    // ============================================================
+    static void styleTable(JTable table) {
+        table.setFont(UIFonts.BODY);
+        table.setForeground(UIColors.NEUTRAL_800);
+        table.setBackground(UIColors.NEUTRAL_0);
+        table.setGridColor(UIColors.NEUTRAL_200);
+        table.setSelectionBackground(UIColors.PRIMARY_50);
+        table.setSelectionForeground(UIColors.NEUTRAL_800);
+        table.setRowHeight(UIMetrics.TABLE_ROW_HEIGHT);
+        table.setShowHorizontalLines(true);
+        table.setShowVerticalLines(false);
+        table.setIntercellSpacing(new Dimension(0, 0));
+        table.setFillsViewportHeight(true);
+
+        JTableHeader header = table.getTableHeader();
+        header.setFont(UIFonts.LABEL_BOLD);
+        header.setForeground(UIColors.NEUTRAL_600);
+        header.setBackground(UIColors.NEUTRAL_100);
+        header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, UIColors.NEUTRAL_200));
+        header.setPreferredSize(new Dimension(header.getWidth(), UIMetrics.TABLE_HEADER_HEIGHT));
+        header.setReorderingAllowed(false);
+
+        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object value,
+                    boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(t, value, isSelected, hasFocus, row, column);
+                setHorizontalAlignment(SwingConstants.CENTER);
+                setBorder(new EmptyBorder(0, 12, 0, 12));
+                if (!isSelected) {
+                    c.setBackground(UIColors.NEUTRAL_0);
+                    c.setForeground(UIColors.NEUTRAL_800);
+                } else {
+                    c.setBackground(UIColors.PRIMARY_50);
+                }
+                return c;
+            }
+        });
     }
 }

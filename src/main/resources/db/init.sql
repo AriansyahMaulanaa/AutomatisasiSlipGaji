@@ -21,9 +21,14 @@ CREATE TABLE IF NOT EXISTS employees (
     department VARCHAR(100),
     base_salary DOUBLE DEFAULT 0,
     employment_type VARCHAR(20) DEFAULT 'TETAP',
+    birth_date DATE DEFAULT NULL,
+    photo TEXT,
+    barcode VARCHAR(100) DEFAULT NULL,
+    status VARCHAR(20) DEFAULT 'Aktif',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_employees_department (department),
-    INDEX idx_employees_position (position)
+    INDEX idx_employees_position (position),
+    INDEX idx_employees_barcode (barcode)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS presensi (

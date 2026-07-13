@@ -1,10 +1,21 @@
 -- =============================================================
--- SlipGaji Pro v1.1.0 - Database Schema (FULL)
+-- SlipGaji Pro v1.1.0 - Database Schema (FULL, CANONICAL)
 -- Database : slipgaji_db
--- Engine   : MariaDB / MySQL
+-- Engine   : MariaDB 10.x / MySQL 8.x
 -- =============================================================
+-- File ini adalah schema definitif untuk instalasi baru.
+-- Semua kolom (termasuk yang di-migrate v2) sudah termasuk di sini.
+--
 -- Cara import:
 --   mysql -u root -p < database/schema.sql
+--
+-- Catatan penting:
+-- - Password default (`spv123`, `manager123`) tersimpan plain-text
+--   di sini, aplikasi akan otomatis meng-hash-nya (BCrypt) saat
+--   pertama kali dijalankan (migrasi v1).
+-- - Aplikasi juga akan mengeksekusi init.sql di resources saat
+--   startup — schema.sql ini hanya untuk keperluan manual import
+--   / inspeksi DB / dokumentasi.
 -- =============================================================
 
 CREATE DATABASE IF NOT EXISTS slipgaji_db
@@ -24,6 +35,7 @@ CREATE TABLE IF NOT EXISTS users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ===================== EMPLOYEES =====================
+-- Termasuk kolom yang di-migrate v2: birth_date, photo, barcode, status
 CREATE TABLE IF NOT EXISTS employees (
     id INT AUTO_INCREMENT PRIMARY KEY,
     employee_id VARCHAR(50) NOT NULL UNIQUE,
@@ -33,9 +45,14 @@ CREATE TABLE IF NOT EXISTS employees (
     department VARCHAR(100),
     base_salary DOUBLE DEFAULT 0,
     employment_type VARCHAR(20) DEFAULT 'TETAP',
+    birth_date DATE DEFAULT NULL,
+    photo TEXT,
+    barcode VARCHAR(100) DEFAULT NULL,
+    status VARCHAR(20) DEFAULT 'Aktif',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_employees_department (department),
-    INDEX idx_employees_position (position)
+    INDEX idx_employees_position (position),
+    INDEX idx_employees_barcode (barcode)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ===================== PRESENSI =====================
@@ -101,7 +118,7 @@ CREATE TABLE IF NOT EXISTS settings (
 
 -- ===================== SCHEMA VERSION =====================
 -- Melacak migrasi schema yang sudah dijalankan oleh aplikasi.
--- Version 1 akan di-INSERT oleh aplikasi saat pertama kali migrate.
+-- Version 1 & 2 akan di-INSERT oleh aplikasi saat pertama kali migrate.
 CREATE TABLE IF NOT EXISTS schema_version (
     version INT PRIMARY KEY,
     applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -109,7 +126,8 @@ CREATE TABLE IF NOT EXISTS schema_version (
 
 -- ===================== SEED DATA =====================
 
--- Users (password akan di-hash otomatis oleh aplikasi saat pertama login via migration v1)
+-- Default users (password akan otomatis di-hash BCrypt oleh aplikasi
+-- pada startup pertama via migrasi v1)
 INSERT IGNORE INTO users (username, password, role) VALUES
     ('spv', 'spv123', 'SPV'),
     ('manager', 'manager123', 'MANAGER');
@@ -124,7 +142,7 @@ INSERT IGNORE INTO settings (`key`, `value`) VALUES
     -- Company
     ('company_name', 'CV. Mandiri Sukses Pratama'),
     ('company_address', 'Taman Royal, Jl. Pinus Niaga Center No.081, Banten 15119'),
-    -- TETAP
+    -- TETAP (legacy naming — masih digunakan sebagai fallback)
     ('overtime_rate_per_hour', '25000'),
     ('daily_rate_divisor', '22'),
     ('transport_allowance', '500000'),
@@ -142,7 +160,7 @@ INSERT IGNORE INTO settings (`key`, `value`) VALUES
     ('transport_allowance_kantor', '400000'),
     ('meal_allowance_kantor', '250000'),
     ('night_shift_rate_kantor', '45000'),
-    -- Crew Store (legacy naming — tetap disertakan untuk kompatibilitas)
+    -- Crewstore
     ('crewstore_overtime_rate_per_hour', '25000'),
     ('crewstore_daily_rate_divisor', '22'),
     ('crewstore_transport_allowance', '500000'),

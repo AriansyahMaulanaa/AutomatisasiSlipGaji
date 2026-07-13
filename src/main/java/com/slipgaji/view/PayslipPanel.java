@@ -8,13 +8,20 @@ import com.slipgaji.controller.PresensiToPayslipController.GenerateResult;
 import com.slipgaji.model.Payslip;
 import com.slipgaji.model.PeriodSummary;
 import com.slipgaji.service.DatabaseService;
-import com.slipgaji.util.Constants;
+import com.slipgaji.ui.components.AppButton;
+import com.slipgaji.ui.components.AppCard;
+import com.slipgaji.ui.components.EmptyState;
+import com.slipgaji.ui.components.StatusBadge;
+import com.slipgaji.ui.theme.UIColors;
+import com.slipgaji.ui.theme.UIFonts;
+import com.slipgaji.ui.theme.UIMetrics;
 import com.slipgaji.util.UIHelper;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
@@ -22,6 +29,13 @@ import java.awt.event.MouseEvent;
 import java.awt.geom.RoundRectangle2D;
 import java.util.List;
 
+/**
+ * PayslipPanel — daftar slip gaji per periode.
+ *
+ * <p>Redesign: hierarki tombol jelas — <b>Generate dari Presensi</b> = Primary
+ * (1 aksi utama), Generate Semua & Kirim Mode Batch = Secondary, Hapus = Danger outline.
+ * Period card selektor pakai border tebal PRIMARY_500 saat aktif.
+ */
 public class PayslipPanel extends JPanel {
     private final PayslipController payslipController;
     private final EmailController emailController;
@@ -44,103 +58,105 @@ public class PayslipPanel extends JPanel {
     }
 
     private void initUI() {
-        setLayout(new BorderLayout(0, 16));
-        setOpaque(false);
-        setBorder(new EmptyBorder(Constants.SPACING_LG, Constants.SPACING_LG + 4,
-                                   Constants.SPACING_LG, Constants.SPACING_LG + 4));
+        setLayout(new BorderLayout(0, UIMetrics.SPACE_16));
+        setBackground(UIColors.NEUTRAL_50);
+        setBorder(new EmptyBorder(UIMetrics.SPACE_24, UIMetrics.SPACE_24,
+                                   UIMetrics.SPACE_24, UIMetrics.SPACE_24));
 
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setOpaque(false);
-
+        // Header
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(false);
         JLabel pageTitle = new JLabel("Daftar Slip Gaji");
-        pageTitle.setFont(Constants.FONT_TITLE);
-        pageTitle.setForeground(Constants.TEXT_PRIMARY);
-        headerPanel.add(pageTitle, BorderLayout.WEST);
+        pageTitle.setFont(UIFonts.H1);
+        pageTitle.setForeground(UIColors.NEUTRAL_800);
+        header.add(pageTitle, BorderLayout.WEST);
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
-        actions.setOpaque(false);
-        JButton btnRefresh = UIHelper.createOutlineButton("Refresh");
+        JPanel headerActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, UIMetrics.SPACE_8, 0));
+        headerActions.setOpaque(false);
+        JButton btnRefresh = AppButton.secondary("Refresh");
         btnRefresh.addActionListener(e -> refresh());
-        actions.add(btnRefresh);
-        headerPanel.add(actions, BorderLayout.EAST);
-        add(headerPanel, BorderLayout.NORTH);
+        headerActions.add(btnRefresh);
+        header.add(headerActions, BorderLayout.EAST);
+        add(header, BorderLayout.NORTH);
 
-        JPanel centerPanel = new JPanel(new BorderLayout(0, 24));
-        centerPanel.setOpaque(false);
+        // Center: period cards + table
+        JPanel center = new JPanel(new BorderLayout(0, UIMetrics.SPACE_16));
+        center.setOpaque(false);
 
         cardsWrapper = new JPanel();
         cardsWrapper.setOpaque(false);
-        centerPanel.add(cardsWrapper, BorderLayout.NORTH);
+        center.add(cardsWrapper, BorderLayout.NORTH);
 
-        JPanel tablePanel = new JPanel(new BorderLayout(0, 8));
-        tablePanel.setOpaque(false);
+        center.add(createTableCard(), BorderLayout.CENTER);
+        add(center, BorderLayout.CENTER);
+    }
 
-        JPanel tblOptions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        tblOptions.setOpaque(false);
+    private AppCard createTableCard() {
+        AppCard card = new AppCard();
 
-        JButton btnDelete = makeDestructButton("Hapus");
-        btnDelete.addActionListener(e -> deleteSelected());
+        JPanel wrap = new JPanel(new BorderLayout(0, UIMetrics.SPACE_8));
+        wrap.setOpaque(false);
 
-        JButton btnSend = UIHelper.createOutlineButton("Kirim Mode Batch");
-        btnSend.addActionListener(e -> sendAllEmails());
-
-        JButton btnGen = UIHelper.createOutlineButton("Generate Semua");
-        btnGen.addActionListener(e -> generateAllPdfs());
-
-        JButton btnGenPresensi = UIHelper.createStyledButton("Generate dari Presensi", Constants.ACCENT_ACTION);
-        btnGenPresensi.addActionListener(e -> generateFromPresensi());
-
-        tblOptions.add(btnDelete);
-        if (AuthController.isManager()) {
-            tblOptions.add(btnGenPresensi);
-        }
-        tblOptions.add(btnGen);
-        tblOptions.add(btnSend);
-
-        statusLabel = new JLabel("Silahkan pilih periode");
-        statusLabel.setForeground(Constants.TEXT_SECONDARY);
-
+        // Top row: status + action buttons
         JPanel tblTop = new JPanel(new BorderLayout());
         tblTop.setOpaque(false);
-        tblTop.add(statusLabel, BorderLayout.WEST);
-        tblTop.add(tblOptions, BorderLayout.EAST);
-        tablePanel.add(tblTop, BorderLayout.NORTH);
 
+        statusLabel = new JLabel("Silahkan pilih periode");
+        statusLabel.setFont(UIFonts.LABEL);
+        statusLabel.setForeground(UIColors.NEUTRAL_600);
+        tblTop.add(statusLabel, BorderLayout.WEST);
+
+        JPanel tblOptions = new JPanel(new FlowLayout(FlowLayout.RIGHT, UIMetrics.SPACE_8, 0));
+        tblOptions.setOpaque(false);
+
+        // Hierarki: Hapus (Danger), Kirim Batch (Secondary), Generate Semua (Secondary), Generate dari Presensi (Primary)
+        JButton btnDelete = AppButton.danger("Hapus");
+        btnDelete.addActionListener(e -> deleteSelected());
+        tblOptions.add(btnDelete);
+
+        JButton btnSend = AppButton.secondary("Kirim Mode Batch");
+        btnSend.addActionListener(e -> sendAllEmails());
+        tblOptions.add(btnSend);
+
+        JButton btnGen = AppButton.secondary("Generate Semua");
+        btnGen.addActionListener(e -> generateAllPdfs());
+        tblOptions.add(btnGen);
+
+        if (AuthController.isManager()) {
+            JButton btnGenPresensi = AppButton.primary("Generate dari Presensi");
+            btnGenPresensi.addActionListener(e -> generateFromPresensi());
+            tblOptions.add(btnGenPresensi);
+        }
+
+        tblTop.add(tblOptions, BorderLayout.EAST);
+        wrap.add(tblTop, BorderLayout.NORTH);
+
+        // Table
         String[] cols = {"No", "ID", "Nama", "Jabatan", "Gaji", "Status"};
         tableModel = new DefaultTableModel(cols, 0) {
             @Override public boolean isCellEditable(int row, int column) { return false; }
         };
         table = new JTable(tableModel);
-        UIHelper.styleTable(table);
+        HistoryPresensiPanel.styleTable(table); // reuse table styler
         table.getColumnModel().getColumn(1).setMinWidth(0);
         table.getColumnModel().getColumn(1).setMaxWidth(0);
         table.getColumnModel().getColumn(1).setPreferredWidth(0);
-        table.getColumnModel().getColumn(5).setCellRenderer(new StatusRenderer());
+        table.getColumnModel().getColumn(5).setCellRenderer(new StatusColRenderer());
 
+        // Right-click popup menu
         JPopupMenu popup = new JPopupMenu();
-        JMenuItem previewItem = new JMenuItem("Lihat Slip (PDF)");
-        previewItem.addActionListener(e -> { popupSelectedPayslip = getSelectedPayslip(); previewSelected(); });
-        JMenuItem genItem = new JMenuItem("Generate Slip");
-        genItem.addActionListener(e -> { popupSelectedPayslip = getSelectedPayslip(); generateSelectedPdf(); });
-        JMenuItem sendItem = new JMenuItem("Kirim Email");
-        sendItem.addActionListener(e -> { popupSelectedPayslip = getSelectedPayslip(); sendSelected(); });
-        JMenuItem editItem = new JMenuItem("Edit Data");
-        editItem.addActionListener(e -> { popupSelectedPayslip = getSelectedPayslip(); editSelected(); });
-        JMenuItem deleteItem = new JMenuItem("Hapus Data");
-        deleteItem.addActionListener(e -> { popupSelectedPayslip = getSelectedPayslip(); deleteSelected(); });
-        popup.add(previewItem); popup.add(genItem); popup.addSeparator(); popup.add(sendItem); popup.add(editItem);
-        popup.addSeparator(); popup.add(deleteItem);
+        addPopupItem(popup, "Lihat Slip (PDF)", () -> { popupSelectedPayslip = getSelectedPayslip(); previewSelected(); });
+        addPopupItem(popup, "Generate Slip",    () -> { popupSelectedPayslip = getSelectedPayslip(); generateSelectedPdf(); });
+        popup.addSeparator();
+        addPopupItem(popup, "Kirim Email",      () -> { popupSelectedPayslip = getSelectedPayslip(); sendSelected(); });
+        addPopupItem(popup, "Edit Data",        () -> { popupSelectedPayslip = getSelectedPayslip(); editSelected(); });
+        popup.addSeparator();
+        addPopupItem(popup, "Hapus Data",       () -> { popupSelectedPayslip = getSelectedPayslip(); deleteSelected(); });
 
         table.addMouseListener(new MouseAdapter() {
-            @Override public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) previewSelected();
-            }
-            @Override public void mousePressed(MouseEvent e) {
-                if (e.isPopupTrigger()) handlePopup(e);
-            }
-            @Override public void mouseReleased(MouseEvent e) {
-                if (e.isPopupTrigger()) handlePopup(e);
-            }
+            @Override public void mouseClicked(MouseEvent e) { if (e.getClickCount() == 2) previewSelected(); }
+            @Override public void mousePressed(MouseEvent e) { if (e.isPopupTrigger()) handlePopup(e); }
+            @Override public void mouseReleased(MouseEvent e) { if (e.isPopupTrigger()) handlePopup(e); }
             private void handlePopup(MouseEvent e) {
                 int row = table.rowAtPoint(e.getPoint());
                 if (row >= 0) table.setRowSelectionInterval(row, row);
@@ -149,67 +165,45 @@ public class PayslipPanel extends JPanel {
         });
 
         JScrollPane scrollPane = new JScrollPane(table);
-        scrollPane.setBorder(BorderFactory.createLineBorder(Constants.BORDER_COLOR));
-        scrollPane.getViewport().setBackground(Constants.BG_CARD);
-        tablePanel.add(scrollPane, BorderLayout.CENTER);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        scrollPane.getViewport().setBackground(UIColors.NEUTRAL_0);
+        wrap.add(scrollPane, BorderLayout.CENTER);
 
         progressBar = new JProgressBar();
         progressBar.setVisible(false);
         progressBar.setStringPainted(true);
-        tablePanel.add(progressBar, BorderLayout.SOUTH);
+        wrap.add(progressBar, BorderLayout.SOUTH);
 
-        centerPanel.add(tablePanel, BorderLayout.CENTER);
-        add(centerPanel, BorderLayout.CENTER);
+        card.addBody(wrap);
+        return card;
     }
 
-    private JButton makeDestructButton(String text) {
-        JButton btn = new JButton(text) {
-            private float hover = 0f;
-            {
-                addMouseListener(new MouseAdapter() {
-                    @Override public void mouseEntered(MouseEvent e) { hover = 0.12f; repaint(); }
-                    @Override public void mouseExited(MouseEvent e) { hover = 0f; repaint(); }
-                });
-            }
-            @Override protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(Constants.FAILED_BG);
-                g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), 10, 10));
-                if (hover > 0) {
-                    g2.setColor(new Color(220, 38, 38, (int)(hover * 60)));
-                    g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), 10, 10));
-                }
-                g2.dispose();
-                super.paintComponent(g);
-            }
-        };
-        btn.setFont(Constants.FONT_BUTTON);
-        btn.setForeground(Constants.DANGER);
-        btn.setBorderPainted(false);
-        btn.setContentAreaFilled(false);
-        btn.setFocusPainted(false);
-        btn.setOpaque(false);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btn.setBorder(new EmptyBorder(10, 20, 10, 20));
-        return btn;
+    private void addPopupItem(JPopupMenu popup, String text, Runnable action) {
+        JMenuItem it = new JMenuItem(text);
+        it.addActionListener(e -> action.run());
+        popup.add(it);
     }
 
+    // ============================================================
+    // Period card
+    // ============================================================
     public void refresh() {
         List<PeriodSummary> summaries = DatabaseService.getInstance().getPayslipPeriodSummaries();
-
         cardsWrapper.removeAll();
 
-        int cardCount = Math.max(summaries.size(), 1);
-        cardsWrapper.setLayout(new GridLayout(1, cardCount, 16, 0));
-        cardsWrapper.setPreferredSize(new Dimension(0, 100));
-
         if (summaries.isEmpty()) {
-            cardsWrapper.add(createEmptyState());
+            cardsWrapper.setLayout(new BorderLayout());
+            cardsWrapper.setPreferredSize(new Dimension(0, 180));
+            AppCard emptyCard = new AppCard();
+            emptyCard.addBody(new EmptyState(EmptyState.Icon.DOCUMENT,
+                    "Belum ada slip gaji untuk periode manapun",
+                    "Generate dari data presensi untuk memulai"));
+            cardsWrapper.add(emptyCard, BorderLayout.CENTER);
         } else {
-            for (PeriodSummary s : summaries) {
-                cardsWrapper.add(createPeriodCard(s));
-            }
+            int cardCount = summaries.size();
+            cardsWrapper.setLayout(new GridLayout(1, cardCount, UIMetrics.SPACE_12, 0));
+            cardsWrapper.setPreferredSize(new Dimension(0, 110));
+            for (PeriodSummary s : summaries) cardsWrapper.add(createPeriodCard(s));
         }
 
         cardsWrapper.revalidate();
@@ -218,7 +212,6 @@ public class PayslipPanel extends JPanel {
         if (currentPeriod == null && !summaries.isEmpty()) {
             currentPeriod = summaries.get(0).getPeriod();
         }
-
         if (currentPeriod != null) {
             loadPayslips(currentPeriod);
         } else {
@@ -233,75 +226,69 @@ public class PayslipPanel extends JPanel {
             {
                 addMouseListener(new MouseAdapter() {
                     @Override public void mouseEntered(MouseEvent e) { hovered = true; repaint(); }
-                    @Override public void mouseExited(MouseEvent e) { hovered = false; repaint(); }
+                    @Override public void mouseExited(MouseEvent e)  { hovered = false; repaint(); }
                     @Override public void mouseClicked(MouseEvent e) {
                         currentPeriod = summary.getPeriod();
                         loadPayslips(summary.getPeriod());
+                        cardsWrapper.repaint();
                     }
                 });
             }
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                int r = Constants.CARD_RADIUS * 2;
-                g2.setColor(hovered ? Constants.BG_SURFACE : Constants.BG_CARD);
+                int r = UIMetrics.RADIUS_CARD * 2;
+                boolean active = currentPeriod != null && currentPeriod.equals(summary.getPeriod());
+                Color bg = active ? UIColors.PRIMARY_50 : (hovered ? UIColors.NEUTRAL_50 : UIColors.NEUTRAL_0);
+                g2.setColor(bg);
                 g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), r, r));
-                boolean isActive = currentPeriod != null && currentPeriod.equals(summary.getPeriod());
-                g2.setColor(isActive ? Constants.ACCENT_BLUE : Constants.BORDER_COLOR);
-                g2.setStroke(new BasicStroke(isActive ? 2f : 1f));
+
+                g2.setColor(active ? UIColors.PRIMARY_500 : UIColors.NEUTRAL_200);
+                g2.setStroke(new BasicStroke(active ? 2f : 1f));
                 g2.draw(new RoundRectangle2D.Double(1, 1, getWidth() - 2, getHeight() - 2, r, r));
                 g2.dispose();
             }
         };
         card.setCursor(new Cursor(Cursor.HAND_CURSOR));
         card.setLayout(new BorderLayout());
-        card.setBorder(new EmptyBorder(12, 16, 12, 16));
+        card.setBorder(new EmptyBorder(UIMetrics.SPACE_16, UIMetrics.SPACE_16,
+                                        UIMetrics.SPACE_16, UIMetrics.SPACE_16));
 
         JLabel title = new JLabel(summary.getFormattedPeriod());
-        title.setFont(Constants.FONT_HEADING);
-        title.setForeground(Constants.TEXT_PRIMARY);
+        title.setFont(UIFonts.H3);
+        title.setForeground(UIColors.NEUTRAL_800);
         card.add(title, BorderLayout.NORTH);
 
         int pending = summary.getSlipCount() - summary.getEmailSentCount();
-        String statusColor;
+        StatusBadge.Tone tone;
         String statusText;
         if (pending == 0 && summary.getSlipCount() > 0) {
-            statusColor = "#16A34A";
-            statusText = "Terkirim";
+            tone = StatusBadge.Tone.SUCCESS; statusText = "Terkirim";
         } else if (pending > 0 && summary.getPdfGeneratedCount() >= summary.getSlipCount()) {
-            statusColor = "#D97706";
-            statusText = "Generated";
+            tone = StatusBadge.Tone.WARNING; statusText = "Generated";
         } else {
-            statusColor = "#64748B";
-            statusText = "Draft";
+            tone = StatusBadge.Tone.NEUTRAL; statusText = "Draft";
         }
-        String body = "<html><span style='color:#64748B;font-size:11px'>"
-                    + summary.getSlipCount() + " Slip Karyawan<br>"
-                    + UIHelper.formatCurrency(summary.getTotalSalary()) + "<br>"
-                    + "<span style='color:" + statusColor + "'>" + statusText + "</span>"
-                    + "</span></html>";
-        JLabel detail = new JLabel(body);
-        card.add(detail, BorderLayout.CENTER);
-        return card;
-    }
 
-    private JPanel createEmptyState() {
-        JPanel card = new JPanel() {
-            @Override protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                int r = Constants.CARD_RADIUS * 2;
-                g2.setColor(Constants.BG_PAGE);
-                g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), r, r));
-                g2.setColor(Constants.BORDER_COLOR);
-                g2.setStroke(new BasicStroke(1f));
-                g2.draw(new RoundRectangle2D.Double(1, 1, getWidth() - 2, getHeight() - 2, r, r));
-                g2.dispose();
-            }
-        };
-        card.setLayout(new GridBagLayout());
-        JLabel lbl = new JLabel("<html><center><span style='color:#94A3B8;font-size:11px'>Belum ada data slip untuk ditampilkan</span></center></html>");
-        card.add(lbl);
+        JPanel body = new JPanel();
+        body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+        body.setOpaque(false);
+        body.setBorder(new EmptyBorder(UIMetrics.SPACE_8, 0, 0, 0));
+
+        JLabel meta = new JLabel(summary.getSlipCount() + " slip  •  " + UIHelper.formatCurrency(summary.getTotalSalary()));
+        meta.setFont(UIFonts.CAPTION);
+        meta.setForeground(UIColors.NEUTRAL_600);
+        meta.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel badgeRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        badgeRow.setOpaque(false);
+        badgeRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        badgeRow.add(new StatusBadge(statusText, tone));
+
+        body.add(meta);
+        body.add(Box.createVerticalStrut(6));
+        body.add(badgeRow);
+        card.add(body, BorderLayout.CENTER);
         return card;
     }
 
@@ -315,9 +302,11 @@ public class PayslipPanel extends JPanel {
                                            UIHelper.formatCurrency(p.getNetSalary()), status });
         }
         statusLabel.setText("Data Slip: " + period + " (" + currentPayslips.size() + " data)");
-        cardsWrapper.repaint();
     }
 
+    // ============================================================
+    // Actions
+    // ============================================================
     private Payslip getSelectedPayslip() {
         int row = table.getSelectedRow();
         if (row < 0) {
@@ -460,11 +449,11 @@ public class PayslipPanel extends JPanel {
                     @Override public void onComplete(int success, int failed, java.util.List<String> failedNames,
                                                      java.util.List<String> failedErrors) {
                         SwingUtilities.invokeLater(() -> {
-                            String msg = "Pengiriman selesai!\n\u2705 Berhasil: " + success + "\n\u274C Gagal: " + failed;
+                            String msg = "Pengiriman selesai!\nBerhasil: " + success + "\nGagal: " + failed;
                             if (failed > 0) {
                                 StringBuilder detail = new StringBuilder("\n\nDaftar gagal:\n");
                                 for (int i = 0; i < failedNames.size(); i++) {
-                                    detail.append("\u2022 ").append(failedNames.get(i))
+                                    detail.append("- ").append(failedNames.get(i))
                                           .append(": ").append(failedErrors.get(i)).append("\n");
                                 }
                                 UIHelper.showError(PayslipPanel.this, msg + detail);
@@ -512,9 +501,7 @@ public class PayslipPanel extends JPanel {
                     StringBuilder msg = new StringBuilder();
                     msg.append("Selesai! Berhasil: ").append(result.getSuccessCount())
                        .append(", Skip: ").append(result.getSkipCount()).append("\n\n");
-                    for (String m : result.getMessages()) {
-                        msg.append(m).append("\n");
-                    }
+                    for (String m : result.getMessages()) msg.append(m).append("\n");
                     currentPeriod = period;
                     refresh();
                     UIHelper.showSuccess(PayslipPanel.this, msg.toString());
@@ -527,19 +514,22 @@ public class PayslipPanel extends JPanel {
         worker.execute();
     }
 
-    private static class StatusRenderer extends DefaultTableCellRenderer {
+    /** Renderer kolom Status untuk tabel slip gaji. */
+    private static class StatusColRenderer implements TableCellRenderer {
         @Override
         public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int row, int col) {
-            JLabel c = (JLabel) super.getTableCellRendererComponent(t, v, sel, foc, row, col);
-            if (v == null) return c;
+            JPanel wrap = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+            wrap.setOpaque(true);
+            wrap.setBackground(sel ? UIColors.PRIMARY_50 : UIColors.NEUTRAL_0);
+            if (v == null) return wrap;
             String s = v.toString();
-            c.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 11));
-            switch (s) {
-                case "Draft" -> c.setForeground(Constants.TEXT_LABEL);
-                case "Generated" -> c.setForeground(Constants.WARN_TEXT);
-                default -> c.setForeground(Constants.SUCCESS);
-            }
-            return c;
+            StatusBadge.Tone tone = switch (s) {
+                case "Draft" -> StatusBadge.Tone.NEUTRAL;
+                case "Generated" -> StatusBadge.Tone.WARNING;
+                default -> StatusBadge.Tone.SUCCESS;
+            };
+            wrap.add(new StatusBadge(s, tone));
+            return wrap;
         }
     }
 }

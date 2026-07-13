@@ -5,22 +5,38 @@ import com.slipgaji.controller.PayslipController;
 import com.slipgaji.model.Payslip;
 import com.slipgaji.model.SendHistory;
 import com.slipgaji.service.DatabaseService;
-import com.slipgaji.util.Constants;
-import com.slipgaji.util.UIHelper;
+import com.slipgaji.ui.components.AppButton;
+import com.slipgaji.ui.components.AppCard;
+import com.slipgaji.ui.components.EmptyState;
+import com.slipgaji.ui.components.StatusBadge;
+import com.slipgaji.ui.theme.UIColors;
+import com.slipgaji.ui.theme.UIFonts;
+import com.slipgaji.ui.theme.UIMetrics;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.util.List;
 
+/**
+ * HistoryPanel — log pengiriman email slip gaji.
+ *
+ * <p>Redesign: filter periode + tombol Refresh Secondary, badge status pakai
+ * {@link StatusBadge}, empty state jelas ketika tidak ada log.
+ */
 public class HistoryPanel extends JPanel {
     private final HistoryController historyController;
     private JTable table;
     private DefaultTableModel tableModel;
     private JComboBox<String> periodCombo;
     private List<SendHistory> currentHistory;
+    private CardLayout centerLayout;
+    private JPanel centerContainer;
+    private AppCard tableCard;
+    private JPanel emptyCard;
 
     public HistoryPanel() {
         this.historyController = new HistoryController();
@@ -28,121 +44,103 @@ public class HistoryPanel extends JPanel {
     }
 
     private void initUI() {
-        setLayout(new BorderLayout());
-        setOpaque(false);
-        setBorder(new EmptyBorder(32, 32, 32, 32));
+        setLayout(new BorderLayout(0, UIMetrics.SPACE_16));
+        setBackground(UIColors.NEUTRAL_50);
+        setBorder(new EmptyBorder(UIMetrics.SPACE_24, UIMetrics.SPACE_24,
+                                   UIMetrics.SPACE_24, UIMetrics.SPACE_24));
 
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setOpaque(false);
-        headerPanel.setBorder(new EmptyBorder(0, 0, 20, 0));
+        // Header
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(false);
         JLabel pageTitle = new JLabel("Histori Pengiriman");
-        pageTitle.setFont(Constants.FONT_TITLE);
-        pageTitle.setForeground(Constants.TEXT_PRIMARY);
-        headerPanel.add(pageTitle, BorderLayout.WEST);
-        add(headerPanel, BorderLayout.NORTH);
+        pageTitle.setFont(UIFonts.H1);
+        pageTitle.setForeground(UIColors.NEUTRAL_800);
+        header.add(pageTitle, BorderLayout.WEST);
+        add(header, BorderLayout.NORTH);
 
-        JPanel controlCard = UIHelper.createCard("");
-        controlCard.setLayout(new FlowLayout(FlowLayout.LEFT, 12, 0));
+        // Filter card
+        AppCard filterCard = new AppCard();
+        JPanel filterRow = new JPanel(new FlowLayout(FlowLayout.LEFT, UIMetrics.SPACE_12, 0));
+        filterRow.setOpaque(false);
+
         JLabel periodLabel = new JLabel("Filter Periode:");
-        periodLabel.setFont(Constants.FONT_BODY);
-        periodLabel.setForeground(Constants.TEXT_SECONDARY);
+        periodLabel.setFont(UIFonts.LABEL);
+        periodLabel.setForeground(UIColors.NEUTRAL_600);
+
         periodCombo = new JComboBox<>();
-        periodCombo.setFont(Constants.FONT_BODY);
-        periodCombo.setPreferredSize(new Dimension(150, 36));
+        periodCombo.setFont(UIFonts.BODY);
+        periodCombo.setBackground(UIColors.NEUTRAL_0);
+        periodCombo.setPreferredSize(new Dimension(180, UIMetrics.INPUT_HEIGHT));
         periodCombo.addActionListener(e -> loadHistory());
-        JButton refreshBtn = UIHelper.createStyledButton("Refresh", Constants.REFRESH_BTN);
+
+        JButton refreshBtn = AppButton.secondary("Refresh");
         refreshBtn.addActionListener(e -> refresh());
-        controlCard.add(periodLabel);
-        controlCard.add(periodCombo);
-        controlCard.add(refreshBtn);
+
+        filterRow.add(periodLabel);
+        filterRow.add(periodCombo);
+        filterRow.add(refreshBtn);
+        filterCard.addBody(filterRow);
+
+        // Center: table card OR empty state (via CardLayout)
+        tableCard = createTableCard();
+        emptyCard = createEmptyCard();
+
+        centerLayout = new CardLayout();
+        centerContainer = new JPanel(centerLayout);
+        centerContainer.setOpaque(false);
+        centerContainer.add(tableCard, "table");
+        centerContainer.add(emptyCard, "empty");
+
+        JPanel body = new JPanel(new BorderLayout(0, UIMetrics.SPACE_16));
+        body.setOpaque(false);
+        body.add(filterCard, BorderLayout.NORTH);
+        body.add(centerContainer, BorderLayout.CENTER);
+        add(body, BorderLayout.CENTER);
+    }
+
+    private AppCard createTableCard() {
+        AppCard card = new AppCard("Log Pengiriman Email");
 
         String[] columns = {"No", "Nama", "Email", "Periode", "Status", "Waktu", "Oleh", "Aksi"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
         table = new JTable(tableModel);
-        UIHelper.styleTable(table);
+        HistoryPresensiPanel.styleTable(table);
 
-        // Status column renderer
-        table.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable t, Object v,
-                    boolean sel, boolean foc, int r, int c) {
-                super.getTableCellRendererComponent(t, v, sel, foc, r, c);
-                if (!sel) {
-                    if ("SUCCESS".equals(v)) {
-                        setForeground(Constants.ACCENT);
-                        setText("Terkirim");
-                    } else {
-                        setForeground(Constants.ACCENT_DANGER);
-                        setText("Gagal");
-                    }
-                    setBackground(r % 2 == 0 ? Constants.BG_CARD : Constants.TABLE_ROW_ALT);
-                }
-                setHorizontalAlignment(SwingConstants.CENTER);
-                return this;
-            }
-        });
+        table.getColumnModel().getColumn(4).setCellRenderer(new StatusCellRenderer());
+        table.getColumnModel().getColumn(7).setCellRenderer(new LinkRenderer("Lihat Detail"));
+        table.getColumnModel().getColumn(7).setPreferredWidth(110);
+        table.getColumnModel().getColumn(7).setMaxWidth(130);
 
-        // Aksi column renderer — "Detail" button look
-        table.getColumnModel().getColumn(7).setCellRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable t, Object v,
-                    boolean sel, boolean foc, int r, int c) {
-                JLabel label = new JLabel("Lihat Detail");
-                label.setFont(Constants.FONT_SMALL);
-                label.setForeground(Constants.PRIMARY);
-                label.setHorizontalAlignment(SwingConstants.CENTER);
-                label.setCursor(new Cursor(Cursor.HAND_CURSOR));
-                label.setOpaque(true);
-                label.setBackground(sel ? new Color(219, 234, 254) :
-                        (r % 2 == 0 ? Constants.BG_CARD : Constants.TABLE_ROW_ALT));
-                return label;
-            }
-        });
-
-        // Click handler for Detail column
         table.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseClicked(java.awt.event.MouseEvent e) {
+            @Override public void mouseClicked(java.awt.event.MouseEvent e) {
                 int row = table.rowAtPoint(e.getPoint());
                 int col = table.columnAtPoint(e.getPoint());
-                if (row >= 0 && col == 7) { // Aksi column
-                    showDetail(row);
-                }
+                if (row >= 0 && col == 7) showDetail(row);
             }
         });
 
-        // Set Aksi column width
-        table.getColumnModel().getColumn(7).setPreferredWidth(90);
-        table.getColumnModel().getColumn(7).setMaxWidth(100);
-
         JScrollPane sp = new JScrollPane(table);
-        sp.getViewport().setBackground(Constants.BG_CARD);
-        sp.setBorder(BorderFactory.createLineBorder(Constants.BORDER_COLOR));
+        sp.getViewport().setBackground(UIColors.NEUTRAL_0);
+        sp.setBorder(BorderFactory.createEmptyBorder());
 
-        JPanel tableCard = UIHelper.createCard("Log Pengiriman Email");
-        tableCard.add(sp, BorderLayout.CENTER);
+        card.addBody(sp);
+        return card;
+    }
 
-        JPanel top = new JPanel(new BorderLayout());
-        top.setOpaque(false);
-        top.setBorder(new EmptyBorder(0, 0, 12, 0));
-        top.add(controlCard, BorderLayout.CENTER);
-
-        JPanel center = new JPanel(new BorderLayout());
-        center.setOpaque(false);
-        center.add(top, BorderLayout.NORTH);
-        center.add(tableCard, BorderLayout.CENTER);
-        add(center, BorderLayout.CENTER);
+    private JPanel createEmptyCard() {
+        AppCard card = new AppCard();
+        card.addBody(new EmptyState(EmptyState.Icon.INBOX,
+                "Belum ada log pengiriman",
+                "Log akan muncul di sini setelah Anda mengirim slip gaji via email"));
+        return card;
     }
 
     private void showDetail(int row) {
         if (currentHistory == null || row >= currentHistory.size()) return;
         SendHistory history = currentHistory.get(row);
-
-        // Get associated payslip for PDF access
         Payslip payslip = DatabaseService.getInstance().getPayslipById(history.getPayslipId());
-
         HistoryDetailDialog dialog = new HistoryDetailDialog(
                 SwingUtilities.getWindowAncestor(this), history, payslip);
         dialog.setVisible(true);
@@ -166,10 +164,49 @@ public class HistoryPanel extends JPanel {
         for (SendHistory h : currentHistory) {
             tableModel.addRow(new Object[]{
                 no++, h.getEmployeeName(), h.getEmployeeEmail(), h.getPeriod(),
-                h.getStatus(), h.getSentAt() != null ? h.getSentAt() : "-",
-                h.getSentBy() != null ? h.getSentBy() : "-",
+                h.getStatus(), h.getSentAt() != null ? h.getSentAt() : "—",
+                h.getSentBy() != null ? h.getSentBy() : "—",
                 "Detail"
             });
+        }
+
+        centerLayout.show(centerContainer, currentHistory.isEmpty() ? "empty" : "table");
+    }
+
+    // ============================================================
+    // Renderers
+    // ============================================================
+    private static class StatusCellRenderer implements TableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable t, Object v,
+                boolean sel, boolean foc, int r, int c) {
+            JPanel wrap = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+            wrap.setOpaque(true);
+            wrap.setBackground(sel ? UIColors.PRIMARY_50 : UIColors.NEUTRAL_0);
+            if (v == null) return wrap;
+            if ("SUCCESS".equals(v)) {
+                wrap.add(new StatusBadge("Terkirim", StatusBadge.Tone.SUCCESS));
+            } else {
+                wrap.add(new StatusBadge("Gagal", StatusBadge.Tone.DANGER));
+            }
+            return wrap;
+        }
+    }
+
+    private static class LinkRenderer extends DefaultTableCellRenderer {
+        private final String text;
+        LinkRenderer(String text) { this.text = text; }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable t, Object v,
+                boolean sel, boolean foc, int row, int col) {
+            JLabel c = (JLabel) super.getTableCellRendererComponent(t, text, sel, foc, row, col);
+            c.setHorizontalAlignment(SwingConstants.CENTER);
+            c.setFont(UIFonts.LABEL_BOLD);
+            c.setForeground(UIColors.PRIMARY_600);
+            c.setBackground(sel ? UIColors.PRIMARY_50 : UIColors.NEUTRAL_0);
+            c.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            return c;
         }
     }
 }

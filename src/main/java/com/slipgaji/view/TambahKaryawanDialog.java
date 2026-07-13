@@ -2,17 +2,29 @@ package com.slipgaji.view;
 
 import com.slipgaji.controller.KaryawanController;
 import com.slipgaji.model.Employee;
-import com.slipgaji.util.Constants;
+import com.slipgaji.ui.components.AppButton;
+import com.slipgaji.ui.components.AppTextField;
+import com.slipgaji.ui.theme.UIColors;
+import com.slipgaji.ui.theme.UIFonts;
+import com.slipgaji.ui.theme.UIMetrics;
 import com.slipgaji.util.PhotoUtil;
 import com.slipgaji.util.UIHelper;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.awt.geom.RoundRectangle2D;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
+/**
+ * TambahKaryawanDialog — form tambah/edit karyawan.
+ *
+ * <p>Redesign: field pakai {@link AppTextField}, tombol Simpan Primary,
+ * tombol Batal Secondary, tombol "Pilih Foto" Secondary.
+ */
 public class TambahKaryawanDialog extends JDialog {
 
     private final KaryawanController controller = new KaryawanController();
@@ -39,92 +51,82 @@ public class TambahKaryawanDialog extends JDialog {
     }
 
     private void initUI() {
-        setSize(520, 600);
+        setSize(560, 660);
         setResizable(false);
 
-        JPanel main = new JPanel(new BorderLayout(0, 16));
-        main.setBackground(Constants.BG_CARD);
-        main.setBorder(new EmptyBorder(20, 24, 20, 24));
+        JPanel main = new JPanel(new BorderLayout(0, UIMetrics.SPACE_16));
+        main.setBackground(UIColors.NEUTRAL_0);
+        main.setBorder(new EmptyBorder(UIMetrics.SPACE_24, UIMetrics.SPACE_24,
+                                        UIMetrics.SPACE_20, UIMetrics.SPACE_24));
 
         JLabel title = new JLabel(editEmployee == null ? "Tambah Karyawan Baru" : "Edit Karyawan");
-        title.setFont(Constants.FONT_TITLE);
-        title.setForeground(Constants.TEXT_PRIMARY);
+        title.setFont(UIFonts.H1);
+        title.setForeground(UIColors.NEUTRAL_800);
         main.add(title, BorderLayout.NORTH);
 
         JPanel form = new JPanel(new GridBagLayout());
         form.setOpaque(false);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(4, 0, 4, 0);
+        gbc.insets = new Insets(6, 0, 6, 0);
         gbc.weightx = 1.0;
+        gbc.gridwidth = 2;
+
+        // Foto preview + button
+        JPanel fotoBlock = new JPanel();
+        fotoBlock.setLayout(new BoxLayout(fotoBlock, BoxLayout.Y_AXIS));
+        fotoBlock.setOpaque(false);
+        fotoBlock.setBorder(new EmptyBorder(0, 0, UIMetrics.SPACE_8, 0));
+
+        fotoPreview = new JLabel(createAvatarPlaceholder(80));
+        fotoPreview.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JButton btnFoto = AppButton.secondary("Pilih Foto");
+        btnFoto.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btnFoto.addActionListener(e -> browseFoto());
+
+        fotoBlock.add(fotoPreview);
+        fotoBlock.add(Box.createVerticalStrut(UIMetrics.SPACE_8));
+        JPanel btnWrap = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        btnWrap.setOpaque(false);
+        btnWrap.add(btnFoto);
+        fotoBlock.add(btnWrap);
 
         int row = 0;
+        gbc.gridx = 0; gbc.gridy = row++;
+        form.add(fotoBlock, gbc);
 
-        fotoPreview = new JLabel(UIHelper.createPlaceholderIcon(80));
-        fotoPreview.setHorizontalAlignment(SwingConstants.CENTER);
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.gridwidth = 2;
-        form.add(fotoPreview, gbc);
-        row++;
+        fieldId = addLabeledField(form, gbc, row++, "ID Karyawan *", "");
+        fieldNama = addLabeledField(form, gbc, row++, "Nama Lengkap *", "");
+        fieldEmail = addLabeledField(form, gbc, row++, "Email", "");
+        fieldJabatan = addLabeledField(form, gbc, row++, "Jabatan", "Crewstore");
+        fieldDept = addLabeledField(form, gbc, row++, "Departemen", "");
+        fieldGaji = addLabeledField(form, gbc, row++, "Gaji Pokok", "0");
 
-        JButton btnFoto = UIHelper.createStyledButton("Pilih Foto", Constants.PRIMARY);
-        btnFoto.addActionListener(e -> browseFoto());
-        gbc.gridy = row;
-        form.add(btnFoto, gbc);
-        row++;
+        // Tipe + Status side-by-side
+        JPanel dualRow = new JPanel(new GridLayout(1, 2, UIMetrics.SPACE_12, 0));
+        dualRow.setOpaque(false);
+        dualRow.add(createCombo("Tipe Karyawan", comboType = new JComboBox<>(new String[]{"TETAP", "PKWT", "KANTOR"})));
+        dualRow.add(createCombo("Status Karyawan", comboStatus = new JComboBox<>(new String[]{"Aktif", "Non-Aktif"})));
+        gbc.gridx = 0; gbc.gridy = row++;
+        form.add(dualRow, gbc);
 
-        gbc.gridwidth = 1;
-        fieldId = addField(form, gbc, row++, "ID Karyawan*", "");
-        fieldNama = addField(form, gbc, row++, "Nama Lengkap*", "");
-        fieldEmail = addField(form, gbc, row++, "Email", "");
-        fieldJabatan = addField(form, gbc, row++, "Jabatan", "Crewstore");
-
-        fieldDept = addField(form, gbc, row++, "Departemen", "");
-        fieldGaji = addField(form, gbc, row++, "Gaji Pokok", "0");
-
-        JPanel typePanel = new JPanel(new BorderLayout(4, 0));
-        typePanel.setOpaque(false);
-        JLabel typeLabel = new JLabel("Tipe Karyawan");
-        typeLabel.setFont(Constants.FONT_SMALL);
-        typeLabel.setForeground(Constants.TEXT_SECONDARY);
-        comboType = new JComboBox<>(new String[]{"TETAP", "PKWT", "KANTOR"});
-        comboType.setFont(Constants.FONT_BODY);
-        typePanel.add(typeLabel, BorderLayout.NORTH);
-        typePanel.add(comboType, BorderLayout.CENTER);
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        form.add(typePanel, gbc);
-
-        JPanel statusPanel = new JPanel(new BorderLayout(4, 0));
-        statusPanel.setOpaque(false);
-        JLabel statusLabel = new JLabel("Status Karyawan");
-        statusLabel.setFont(Constants.FONT_SMALL);
-        statusLabel.setForeground(Constants.TEXT_SECONDARY);
-        comboStatus = new JComboBox<>(new String[]{"Aktif", "Non-Aktif"});
-        comboStatus.setFont(Constants.FONT_BODY);
-        statusPanel.add(statusLabel, BorderLayout.NORTH);
-        statusPanel.add(comboStatus, BorderLayout.CENTER);
-        gbc.gridx = 1;
-        gbc.gridy = row;
-        form.add(statusPanel, gbc);
-        row++;
-
-        fieldTglLahir = addField(form, gbc, row++, "Tanggal Lahir (yyyy-MM-dd)", "");
-        fieldBarcode = addField(form, gbc, row++, "Barcode*", "");
+        fieldTglLahir = addLabeledField(form, gbc, row++, "Tanggal Lahir (yyyy-MM-dd)", "");
+        fieldBarcode = addLabeledField(form, gbc, row++, "Barcode *", "");
 
         JScrollPane scrollPane = new JScrollPane(form);
         scrollPane.setBorder(null);
+        scrollPane.setOpaque(false);
         scrollPane.getViewport().setOpaque(false);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
         main.add(scrollPane, BorderLayout.CENTER);
 
-        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, UIMetrics.SPACE_8, 0));
         btnPanel.setOpaque(false);
 
-        JButton btnBatal = UIHelper.createStyledButton("Batal", Constants.REFRESH_BTN);
+        JButton btnBatal = AppButton.secondary("Batal");
         btnBatal.addActionListener(e -> dispose());
-
-        JButton btnSimpan = UIHelper.createStyledButton("Simpan", Constants.ACCENT);
+        JButton btnSimpan = AppButton.primary("Simpan");
         btnSimpan.addActionListener(e -> saveKaryawan());
 
         btnPanel.add(btnBatal);
@@ -134,18 +136,31 @@ public class TambahKaryawanDialog extends JDialog {
         setContentPane(main);
     }
 
-    private JTextField addField(JPanel panel, GridBagConstraints gbc, int row, String label, String defaultValue) {
-        JPanel fieldPanel = new JPanel(new BorderLayout(4, 2));
+    private JPanel createCombo(String label, JComboBox<String> combo) {
+        JPanel p = new JPanel(new BorderLayout(0, 4));
+        p.setOpaque(false);
+        JLabel l = new JLabel(label);
+        l.setFont(UIFonts.LABEL);
+        l.setForeground(UIColors.NEUTRAL_600);
+        combo.setFont(UIFonts.BODY);
+        combo.setBackground(UIColors.NEUTRAL_0);
+        combo.setPreferredSize(new Dimension(0, UIMetrics.INPUT_HEIGHT));
+        p.add(l, BorderLayout.NORTH);
+        p.add(combo, BorderLayout.CENTER);
+        return p;
+    }
+
+    private JTextField addLabeledField(JPanel panel, GridBagConstraints gbc, int row, String label, String defaultValue) {
+        JPanel fieldPanel = new JPanel(new BorderLayout(0, 4));
         fieldPanel.setOpaque(false);
         JLabel jLabel = new JLabel(label);
-        jLabel.setFont(Constants.FONT_SMALL);
-        jLabel.setForeground(Constants.TEXT_SECONDARY);
-        JTextField field = UIHelper.createStyledTextField(defaultValue);
+        jLabel.setFont(UIFonts.LABEL);
+        jLabel.setForeground(UIColors.NEUTRAL_600);
+        JTextField field = AppTextField.create("");
+        if (defaultValue != null && !defaultValue.isEmpty()) field.setText(defaultValue);
         fieldPanel.add(jLabel, BorderLayout.NORTH);
         fieldPanel.add(field, BorderLayout.CENTER);
-        gbc.gridx = row % 2 == 0 ? 0 : 0;
-        gbc.gridy = row;
-        gbc.gridwidth = 2;
+        gbc.gridx = 0; gbc.gridy = row;
         panel.add(fieldPanel, gbc);
         return field;
     }
@@ -165,6 +180,25 @@ public class TambahKaryawanDialog extends JDialog {
         }
     }
 
+    /** Avatar placeholder — soft primary bg. */
+    private ImageIcon createAvatarPlaceholder(int size) {
+        BufferedImage bi = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2 = bi.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setColor(UIColors.PRIMARY_50);
+        g2.fill(new RoundRectangle2D.Double(0, 0, size, size, size, size));
+        g2.setColor(UIColors.PRIMARY_500);
+        g2.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        int cx = size / 2, cy = size / 2 - size / 10;
+        int hr = size / 7;
+        g2.drawOval(cx - hr, cy - hr, hr * 2, hr * 2);
+        int shoulderW = size / 3;
+        int bodyTop = cy + hr + size / 20;
+        g2.drawArc(cx - shoulderW, bodyTop, shoulderW * 2, shoulderW * 2, 0, 180);
+        g2.dispose();
+        return new ImageIcon(bi);
+    }
+
     private void populateFields(Employee emp) {
         fieldId.setText(emp.getEmployeeId());
         fieldNama.setText(emp.getName());
@@ -174,9 +208,7 @@ public class TambahKaryawanDialog extends JDialog {
         fieldGaji.setText(String.valueOf((long) emp.getBaseSalary()));
         comboType.setSelectedItem(emp.getEmploymentType());
         comboStatus.setSelectedItem(emp.getStatus() != null ? emp.getStatus() : "Aktif");
-        if (emp.getBirthDate() != null) {
-            fieldTglLahir.setText(emp.getBirthDate().toString());
-        }
+        if (emp.getBirthDate() != null) fieldTglLahir.setText(emp.getBirthDate().toString());
         fieldBarcode.setText(emp.getBarcode());
         photoPath = emp.getPhoto();
         if (photoPath != null && !photoPath.isEmpty()) {

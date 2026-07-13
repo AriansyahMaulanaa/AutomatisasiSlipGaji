@@ -2,18 +2,20 @@ package com.slipgaji.view;
 
 import com.slipgaji.model.Payslip;
 import com.slipgaji.model.SendHistory;
-import com.slipgaji.util.Constants;
+import com.slipgaji.ui.components.AppButton;
+import com.slipgaji.ui.components.StatusBadge;
+import com.slipgaji.ui.theme.UIColors;
+import com.slipgaji.ui.theme.UIFonts;
+import com.slipgaji.ui.theme.UIMetrics;
 import com.slipgaji.util.UIHelper;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.awt.geom.RoundRectangle2D;
 import java.io.File;
 
 /**
- * Dialog to show detail of a send history entry.
- * User can view the associated payslip PDF from here.
+ * Dialog detail pengiriman email — refactor pakai StatusBadge + AppButton.
  */
 public class HistoryDetailDialog extends JDialog {
     private final SendHistory history;
@@ -27,91 +29,87 @@ public class HistoryDetailDialog extends JDialog {
     }
 
     private void initUI() {
-        setSize(520, 500);
+        setSize(540, 520);
         setLocationRelativeTo(getOwner());
         setResizable(false);
 
-        JPanel mainPanel = new JPanel(new BorderLayout());
-        mainPanel.setBackground(Constants.BG_DARK);
-        mainPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        JPanel mainPanel = new JPanel(new BorderLayout(0, UIMetrics.SPACE_16));
+        mainPanel.setBackground(UIColors.NEUTRAL_0);
+        mainPanel.setBorder(new EmptyBorder(UIMetrics.SPACE_24, UIMetrics.SPACE_24,
+                                             UIMetrics.SPACE_20, UIMetrics.SPACE_24));
 
-        // Status banner
+        // Header — title + status badge
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(false);
+
+        JPanel left = new JPanel();
+        left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
+        left.setOpaque(false);
+        JLabel title = new JLabel("Detail Pengiriman");
+        title.setFont(UIFonts.H1);
+        title.setForeground(UIColors.NEUTRAL_800);
+        JLabel subtitle = new JLabel(history.getEmployeeName());
+        subtitle.setFont(UIFonts.BODY);
+        subtitle.setForeground(UIColors.NEUTRAL_600);
+        left.add(title);
+        left.add(Box.createVerticalStrut(2));
+        left.add(subtitle);
+        header.add(left, BorderLayout.WEST);
+
         boolean isSuccess = "SUCCESS".equals(history.getStatus());
-        Color bannerColor = isSuccess ? Constants.ACCENT : Constants.ACCENT_DANGER;
-        String statusText = isSuccess ? "✅ Email Berhasil Terkirim" : "❌ Email Gagal Terkirim";
+        StatusBadge badge = new StatusBadge(
+                isSuccess ? "Email Terkirim" : "Email Gagal",
+                isSuccess ? StatusBadge.Tone.SUCCESS : StatusBadge.Tone.DANGER);
+        JPanel badgeWrap = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        badgeWrap.setOpaque(false);
+        badgeWrap.add(badge);
+        header.add(badgeWrap, BorderLayout.EAST);
+        mainPanel.add(header, BorderLayout.NORTH);
 
-        JPanel banner = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(bannerColor);
-                g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), 16, 16));
-                g2.dispose();
-            }
-        };
-        banner.setOpaque(false);
-        banner.setBorder(new EmptyBorder(16, 20, 16, 20));
-        banner.setLayout(new BorderLayout());
-        banner.setPreferredSize(new Dimension(0, 56));
+        // Detail content
+        JPanel detail = new JPanel();
+        detail.setLayout(new BoxLayout(detail, BoxLayout.Y_AXIS));
+        detail.setOpaque(false);
+        detail.setBorder(new EmptyBorder(UIMetrics.SPACE_16, 0, 0, 0));
 
-        JLabel statusLabel = new JLabel(statusText);
-        statusLabel.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 15));
-        statusLabel.setForeground(Color.WHITE);
-        banner.add(statusLabel, BorderLayout.WEST);
-
-        mainPanel.add(banner, BorderLayout.NORTH);
-
-        // Detail card
-        JPanel detailCard = UIHelper.createCard("");
-        detailCard.setBorder(new EmptyBorder(20, 24, 20, 24));
-
-        JPanel detailContent = new JPanel();
-        detailContent.setLayout(new BoxLayout(detailContent, BoxLayout.Y_AXIS));
-        detailContent.setOpaque(false);
-
-        detailContent.add(Box.createVerticalStrut(8));
-        addDetailRow(detailContent, "Nama Karyawan", history.getEmployeeName());
-        addDetailRow(detailContent, "Email", history.getEmployeeEmail());
-        addDetailRow(detailContent, "Periode", history.getPeriod());
-        addDetailRow(detailContent, "Waktu Kirim", history.getSentAt() != null ? history.getSentAt() : "-");
-        addDetailRow(detailContent, "Dikirim Oleh", history.getSentBy() != null ? history.getSentBy() : "-");
+        addDetailRow(detail, "Nama Karyawan", history.getEmployeeName());
+        addDetailRow(detail, "Email", history.getEmployeeEmail());
+        addDetailRow(detail, "Periode", history.getPeriod());
+        addDetailRow(detail, "Waktu Kirim", history.getSentAt() != null ? history.getSentAt() : "—");
+        addDetailRow(detail, "Dikirim Oleh", history.getSentBy() != null ? history.getSentBy() : "—");
 
         if (!isSuccess && history.getErrorMessage() != null && !history.getErrorMessage().isEmpty()) {
-            addDetailRow(detailContent, "Error", history.getErrorMessage());
+            addDetailRow(detail, "Error", history.getErrorMessage());
         }
 
         if (payslip != null) {
-            detailContent.add(Box.createVerticalStrut(8));
-            addDetailRow(detailContent, "Gaji Bersih", UIHelper.formatCurrency(payslip.getNetSalary()));
+            detail.add(Box.createVerticalStrut(UIMetrics.SPACE_8));
+            addDetailRow(detail, "Gaji Bersih", UIHelper.formatCurrency(payslip.getNetSalary()));
             String pdfStatus = (payslip.getPdfPath() != null && !payslip.getPdfPath().isEmpty()
-                    && new File(payslip.getPdfPath()).exists()) ? "✅ Tersedia" : "— Tidak tersedia";
-            addDetailRow(detailContent, "File PDF", pdfStatus);
+                    && new File(payslip.getPdfPath()).exists()) ? "Tersedia" : "Tidak tersedia";
+            addDetailRow(detail, "File PDF", pdfStatus);
         }
 
-        detailCard.add(detailContent, BorderLayout.CENTER);
-
-        JPanel cardWrapper = new JPanel(new BorderLayout());
-        cardWrapper.setOpaque(false);
-        cardWrapper.setBorder(new EmptyBorder(16, 0, 0, 0));
-        cardWrapper.add(detailCard, BorderLayout.CENTER);
-
-        mainPanel.add(cardWrapper, BorderLayout.CENTER);
+        JScrollPane sp = new JScrollPane(detail);
+        sp.setBorder(BorderFactory.createEmptyBorder());
+        sp.setOpaque(false);
+        sp.getViewport().setOpaque(false);
+        mainPanel.add(sp, BorderLayout.CENTER);
 
         // Buttons
-        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, UIMetrics.SPACE_8, 0));
         btnPanel.setOpaque(false);
-        btnPanel.setBorder(new EmptyBorder(16, 0, 0, 0));
+        btnPanel.setBorder(new EmptyBorder(UIMetrics.SPACE_16, 0, 0, 0));
+
+        JButton closeBtn = AppButton.secondary("Tutup");
+        closeBtn.addActionListener(e -> dispose());
+        btnPanel.add(closeBtn);
 
         if (payslip != null && payslip.getPdfPath() != null && !payslip.getPdfPath().isEmpty()) {
-            JButton openPdfBtn = UIHelper.createStyledButton("Buka Slip PDF", Constants.PRIMARY);
+            JButton openPdfBtn = AppButton.primary("Buka Slip PDF");
             openPdfBtn.addActionListener(e -> openPdf());
             btnPanel.add(openPdfBtn);
         }
-
-        JButton closeBtn = UIHelper.createStyledButton("Tutup", Constants.REFRESH_BTN);
-        closeBtn.addActionListener(e -> dispose());
-        btnPanel.add(closeBtn);
 
         mainPanel.add(btnPanel, BorderLayout.SOUTH);
         setContentPane(mainPanel);
@@ -122,15 +120,16 @@ public class HistoryDetailDialog extends JDialog {
         row.setOpaque(false);
         row.setBorder(new EmptyBorder(6, 0, 6, 0));
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 32));
+        row.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel lblLabel = new JLabel(label);
-        lblLabel.setFont(Constants.FONT_BODY);
-        lblLabel.setForeground(Constants.TEXT_SECONDARY);
+        lblLabel.setFont(UIFonts.LABEL);
+        lblLabel.setForeground(UIColors.NEUTRAL_600);
         lblLabel.setPreferredSize(new Dimension(140, 20));
 
-        JLabel lblValue = new JLabel(value != null ? value : "-");
-        lblValue.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 13));
-        lblValue.setForeground(Constants.TEXT_PRIMARY);
+        JLabel lblValue = new JLabel(value != null ? value : "—");
+        lblValue.setFont(UIFonts.BODY_BOLD);
+        lblValue.setForeground(UIColors.NEUTRAL_800);
 
         row.add(lblLabel, BorderLayout.WEST);
         row.add(lblValue, BorderLayout.CENTER);

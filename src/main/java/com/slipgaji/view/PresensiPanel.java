@@ -6,6 +6,12 @@ import com.github.sarxos.webcam.WebcamResolution;
 import com.slipgaji.controller.PresensiController;
 import com.slipgaji.controller.PresensiController.PresensiResult;
 import com.slipgaji.model.Employee;
+import com.slipgaji.ui.components.AppCard;
+import com.slipgaji.ui.components.SegmentedControl;
+import com.slipgaji.ui.components.StatusBadge;
+import com.slipgaji.ui.theme.UIColors;
+import com.slipgaji.ui.theme.UIFonts;
+import com.slipgaji.ui.theme.UIMetrics;
 import com.slipgaji.util.BarcodeUtil;
 import com.slipgaji.util.Constants;
 import com.slipgaji.util.SoundUtil;
@@ -23,6 +29,17 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * PresensiPanel — scan barcode kartu karyawan.
+ *
+ * <p>Redesign:
+ * <ul>
+ *   <li>Viewfinder pakai 4 corner brackets (bukan border penuh).</li>
+ *   <li>Toggle Masuk/Pulang pakai {@link SegmentedControl}.</li>
+ *   <li>Info karyawan dibungkus {@link AppCard} dengan border+radius.</li>
+ *   <li>Status pill pakai {@link StatusBadge} dengan tone Info/Success/Danger.</li>
+ * </ul>
+ */
 public class PresensiPanel extends JPanel {
 
     private final PresensiController presensiController = new PresensiController();
@@ -31,25 +48,14 @@ public class PresensiPanel extends JPanel {
     private Timer scanTimer;
 
     private JLabel fotoLabel;
-    private JLabel namaLabel;
-    private JLabel jabatanLabel;
-    private JLabel statusKaryawanLabel;
-    private JLabel idLabel;
-    private JLabel tglLahirLabel;
-    private JLabel statusScanLabel;
+    private JLabel namaLabel, jabatanLabel, statusKaryawanLabel, idLabel, tglLahirLabel;
+    private StatusBadge statusBadge;
 
-    private JPanel infoPanel;
-    private JPanel statusBadge;
-    private JPanel statusDot;
-    private Color badgeBg = Constants.BADGE_BG;
-    private Color badgeBorder = Constants.BADGE_BORDER;
-    private Color badgeDot = Constants.DOT_ACTIVE;
-    private Color badgeTextColor = Constants.BADGE_TEXT;
     private ScanOverlayPanel scanOverlay;
     private boolean scanning = true;
 
     private String selectedTipe = "Masuk";
-    private JPanel togglePanel;
+    private SegmentedControl toggle;
 
     private final Map<JLabel, String> fieldNames = new HashMap<>();
     private String lastBarcode = "";
@@ -61,15 +67,15 @@ public class PresensiPanel extends JPanel {
     }
 
     private void initUI() {
-        setLayout(new BorderLayout(0, 12));
-        setOpaque(false);
-        setBorder(new EmptyBorder(Constants.SPACING_MD, Constants.SPACING_LG - 4,
-                                   Constants.SPACING_MD, Constants.SPACING_LG - 4));
+        setLayout(new BorderLayout(0, UIMetrics.SPACE_16));
+        setBackground(UIColors.NEUTRAL_50);
+        setBorder(new EmptyBorder(UIMetrics.SPACE_24, UIMetrics.SPACE_24,
+                                   UIMetrics.SPACE_24, UIMetrics.SPACE_24));
 
         JLabel title = new JLabel("Presensi Scan");
-        title.setFont(Constants.FONT_TITLE);
-        title.setForeground(Constants.TEXT_PRIMARY);
-        title.setBorder(new EmptyBorder(0, 4, Constants.SPACING_MD, 4));
+        title.setFont(UIFonts.H1);
+        title.setForeground(UIColors.NEUTRAL_800);
+        title.setBorder(new EmptyBorder(0, 0, UIMetrics.SPACE_8, 0));
         add(title, BorderLayout.NORTH);
 
         JPanel mainContent = new JPanel(new GridBagLayout());
@@ -77,186 +83,61 @@ public class PresensiPanel extends JPanel {
 
         GridBagConstraints gbc = new GridBagConstraints();
 
-        JPanel leftCol = new JPanel(new BorderLayout(0, Constants.SPACING_SM));
+        // ============ LEFT: Toggle + Camera + StatusBadge ============
+        JPanel leftCol = new JPanel(new BorderLayout(0, UIMetrics.SPACE_12));
         leftCol.setOpaque(false);
 
-        togglePanel = createToggleControl();
-        leftCol.add(togglePanel, BorderLayout.NORTH);
+        // Segmented toggle wrapped in card-like container for elevation feel
+        JPanel toggleWrap = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        toggleWrap.setOpaque(false);
+        toggle = new SegmentedControl();
+        toggle.addSegment("Absen Masuk", "Masuk");
+        toggle.addSegment("Absen Pulang", "Pulang");
+        toggle.setSelected("Masuk");
+        toggle.onChange(key -> selectedTipe = key);
+        toggleWrap.add(toggle);
+        leftCol.add(toggleWrap, BorderLayout.NORTH);
 
         scanOverlay = new ScanOverlayPanel();
         scanOverlay.setPreferredSize(new Dimension(Constants.CAMERA_WIDTH, Constants.CAMERA_HEIGHT));
         scanOverlay.setMinimumSize(new Dimension(400, 300));
-        scanOverlay.setBorder(new EmptyBorder(Constants.SPACING_XS, Constants.SPACING_XS,
-                                              Constants.SPACING_XS, Constants.SPACING_XS));
         leftCol.add(scanOverlay, BorderLayout.CENTER);
 
-        statusBadge = createStatusBadge();
+        statusBadge = StatusBadge.infoWithDot("Menunggu Scan...");
         JPanel badgeWrap = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
         badgeWrap.setOpaque(false);
         badgeWrap.add(statusBadge);
         leftCol.add(badgeWrap, BorderLayout.SOUTH);
 
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.weightx = 1.0;
-        gbc.weighty = 1.0;
+        gbc.gridx = 0; gbc.gridy = 0;
+        gbc.weightx = 1.0; gbc.weighty = 1.0;
         gbc.fill = GridBagConstraints.BOTH;
-        gbc.insets = new Insets(0, 0, 0, Constants.SPACING_MD);
+        gbc.insets = new Insets(0, 0, 0, UIMetrics.SPACE_16);
         mainContent.add(leftCol, gbc);
 
-        infoPanel = createInfoCard();
-        gbc.gridx = 1;
-        gbc.weightx = 0.0;
-        gbc.weighty = 1.0;
+        // ============ RIGHT: Info card ============
+        gbc.gridx = 1; gbc.weightx = 0.0;
         gbc.fill = GridBagConstraints.VERTICAL;
         gbc.insets = new Insets(0, 0, 0, 0);
-        mainContent.add(infoPanel, gbc);
+        mainContent.add(createInfoCard(), gbc);
 
         add(mainContent, BorderLayout.CENTER);
     }
 
-    private JPanel createToggleControl() {
-        JPanel track = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0)) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                int w = getWidth(), h = getHeight();
-                g2.setColor(Constants.BADGE_BG);
-                g2.fill(new RoundRectangle2D.Double(0, 0, w, h, h, h));
-                g2.dispose();
-                super.paintComponent(g);
-            }
-        };
-        track.setOpaque(false);
-        track.setBorder(new EmptyBorder(4, 4, 4, 4));
+    // ============================================================
+    // Info card (right column)
+    // ============================================================
+    private AppCard createInfoCard() {
+        AppCard card = new AppCard("Informasi Karyawan");
+        card.setPreferredSize(new Dimension(300, 0));
 
-        JButton masukBtn = createToggleButton("Absen Masuk", "Masuk");
-        JButton pulangBtn = createToggleButton("Absen Pulang", "Pulang");
-
-        track.add(masukBtn);
-        track.add(pulangBtn);
-        return track;
-    }
-
-    private JButton createToggleButton(String text, String tipe) {
-        JButton btn = new JButton(text) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                int w = getWidth(), h = getHeight();
-                boolean active = selectedTipe.equals(tipe);
-                if (active) {
-                    g2.setColor(Constants.ACCENT_ACTION);
-                    g2.fill(new RoundRectangle2D.Double(0, 0, w, h, h, h));
-                }
-                g2.dispose();
-                super.paintComponent(g);
-            }
-        };
-        btn.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, 12));
-        btn.setForeground(selectedTipe.equals(tipe) ? Color.WHITE : Constants.TEXT_LABEL);
-        btn.setBorderPainted(false);
-        btn.setContentAreaFilled(false);
-        btn.setFocusPainted(false);
-        btn.setOpaque(false);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btn.setBorder(new EmptyBorder(8, 20, 8, 20));
-        btn.addActionListener(e -> {
-            selectedTipe = tipe;
-            for (Component c : togglePanel.getComponents()) {
-                if (c instanceof JButton b) {
-                    String t = b.getText().contains("Masuk") ? "Masuk" : "Pulang";
-                    b.setForeground(t.equals(selectedTipe) ? Color.WHITE : Constants.TEXT_LABEL);
-                    b.repaint();
-                }
-            }
-            togglePanel.repaint();
-        });
-        return btn;
-    }
-
-    private JPanel createStatusBadge() {
-        JPanel badge = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 0)) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                int w = getWidth(), h = getHeight();
-                g2.setColor(Constants.BADGE_BG);
-                g2.fill(new RoundRectangle2D.Double(0, 0, w, h, h, h));
-                g2.setColor(Constants.BADGE_BORDER);
-                g2.setStroke(new BasicStroke(1f));
-                g2.draw(new RoundRectangle2D.Double(0, 0, w - 1, h - 1, h, h));
-                g2.dispose();
-                super.paintComponent(g);
-            }
-        };
-        badge.setOpaque(false);
-        badge.setBorder(new EmptyBorder(6, 16, 6, 16));
-
-        statusDot = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(Constants.DOT_ACTIVE);
-                g2.fillOval(0, 0, 8, 8);
-                g2.dispose();
-            }
-        };
-        statusDot.setOpaque(false);
-        statusDot.setPreferredSize(new Dimension(8, 8));
-
-        statusScanLabel = new JLabel("Menunggu Scan...");
-        statusScanLabel.setFont(Constants.FONT_BODY);
-        statusScanLabel.setForeground(Constants.BADGE_TEXT);
-
-        badge.add(statusDot);
-        badge.add(statusScanLabel);
-        return badge;
-    }
-
-    private void updateStatusBadge(String text, Color bg, Color border, Color dotColor, Color textColor) {
-        statusScanLabel.setText(text);
-        statusScanLabel.setForeground(textColor);
-        statusBadge.repaint();
-        statusDot.repaint();
-    }
-
-    private JPanel createInfoCard() {
-        JPanel card = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                int w = getWidth(), h = getHeight();
-                g2.setColor(new Color(0, 0, 0, 15));
-                g2.fill(new RoundRectangle2D.Double(0, 1, w, h - 1, 10, 10));
-                g2.setColor(Constants.BG_CARD);
-                g2.fill(new RoundRectangle2D.Double(0, 0, w, h, 10, 10));
-                g2.setColor(Constants.BORDER_COLOR);
-                g2.setStroke(new BasicStroke(1f));
-                g2.draw(new RoundRectangle2D.Double(0, 0, w - 1, h - 1, 10, 10));
-                g2.dispose();
-            }
-        };
-        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.setOpaque(false);
-        card.setBorder(new EmptyBorder(Constants.SPACING_SM + 12, Constants.SPACING_LG,
-                                       Constants.SPACING_SM + 12, Constants.SPACING_LG));
-        card.setPreferredSize(new Dimension(280, 0));
+        JPanel body = new JPanel();
+        body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+        body.setOpaque(false);
 
         fotoLabel = new JLabel();
         fotoLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        fotoLabel.setBorder(new EmptyBorder(0, 0, Constants.SPACING_MD, 0));
-
-        JLabel infoTitle = new JLabel("Informasi Karyawan");
-        infoTitle.setFont(Constants.FONT_HEADING);
-        infoTitle.setForeground(Constants.TEXT_PRIMARY);
-        infoTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
-        infoTitle.setBorder(new EmptyBorder(0, 0, Constants.SPACING_SM + 4, 0));
+        fotoLabel.setBorder(new EmptyBorder(0, 0, UIMetrics.SPACE_16, 0));
 
         namaLabel = createInfoField("Nama");
         jabatanLabel = createInfoField("Jabatan");
@@ -264,27 +145,27 @@ public class PresensiPanel extends JPanel {
         idLabel = createInfoField("ID Karyawan");
         tglLahirLabel = createInfoField("Tanggal Lahir");
 
-        card.add(infoTitle);
-        card.add(fotoLabel);
-        card.add(namaLabel);
-        card.add(Box.createVerticalStrut(Constants.SPACING_SM));
-        card.add(jabatanLabel);
-        card.add(Box.createVerticalStrut(Constants.SPACING_SM));
-        card.add(statusKaryawanLabel);
-        card.add(Box.createVerticalStrut(Constants.SPACING_SM));
-        card.add(idLabel);
-        card.add(Box.createVerticalStrut(Constants.SPACING_SM));
-        card.add(tglLahirLabel);
+        body.add(fotoLabel);
+        body.add(namaLabel);
+        body.add(Box.createVerticalStrut(UIMetrics.SPACE_8));
+        body.add(jabatanLabel);
+        body.add(Box.createVerticalStrut(UIMetrics.SPACE_8));
+        body.add(statusKaryawanLabel);
+        body.add(Box.createVerticalStrut(UIMetrics.SPACE_8));
+        body.add(idLabel);
+        body.add(Box.createVerticalStrut(UIMetrics.SPACE_8));
+        body.add(tglLahirLabel);
 
+        card.addBody(body);
         clearInfo();
         return card;
     }
 
     private JLabel createInfoField(String label) {
         JLabel lbl = new JLabel();
-        lbl.setFont(Constants.FONT_BODY);
-        lbl.setForeground(Constants.TEXT_PRIMARY);
-        lbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+        lbl.setFont(UIFonts.BODY);
+        lbl.setForeground(UIColors.NEUTRAL_800);
+        lbl.setAlignmentX(Component.LEFT_ALIGNMENT);
         fieldNames.put(lbl, label);
         setInfoField(lbl, null);
         return lbl;
@@ -293,50 +174,68 @@ public class PresensiPanel extends JPanel {
     private void setInfoField(JLabel label, String value) {
         String fieldName = fieldNames.get(label);
         if (fieldName == null) return;
-        String display = (value != null && !value.isEmpty()) ? value : "-";
-        String valColor = value != null ? "#1E293B" : "#94A3B8";
-        String valStyle = value != null ? "" : "font-style:italic;";
-        label.setText("<html><b style='color:#475569'>" + fieldName + ":</b> " +
-                     "<span style='color:" + valColor + ";" + valStyle + "'>" + display + "</span></html>");
+        String display = (value != null && !value.isEmpty()) ? value : "—";
+        String labelColor = colorHex(UIColors.NEUTRAL_600);
+        String valColor = value != null ? colorHex(UIColors.NEUTRAL_800) : colorHex(UIColors.NEUTRAL_400);
+        label.setText("<html><span style='color:" + labelColor + ";font-size:11px'>" + fieldName + "</span>"
+                    + "<br><span style='color:" + valColor + ";font-size:13px'><b>" + display + "</b></span></html>");
+    }
+
+    private static String colorHex(Color c) {
+        return String.format("#%02x%02x%02x", c.getRed(), c.getGreen(), c.getBlue());
     }
 
     private void clearInfo() {
-        fotoLabel.setIcon(UIHelper.createPlaceholderIcon(120));
-        for (JLabel lbl : fieldNames.keySet()) {
-            setInfoField(lbl, null);
-        }
+        fotoLabel.setIcon(createAvatarPlaceholder(96));
+        for (JLabel lbl : fieldNames.keySet()) setInfoField(lbl, null);
     }
 
     private void displayEmployeeInfo(Employee emp) {
-        if (emp == null) {
-            clearInfo();
-            return;
-        }
+        if (emp == null) { clearInfo(); return; }
         setInfoField(namaLabel, emp.getName());
         setInfoField(jabatanLabel, emp.getPosition());
         setInfoField(statusKaryawanLabel, emp.getStatus());
         setInfoField(idLabel, emp.getEmployeeId());
-        setInfoField(tglLahirLabel, emp.getBirthDate() != null ?
-                emp.getBirthDate().format(DateTimeFormatter.ofPattern("dd MMMM yyyy")) : "-");
+        setInfoField(tglLahirLabel, emp.getBirthDate() != null
+                ? emp.getBirthDate().format(DateTimeFormatter.ofPattern("dd MMMM yyyy")) : "—");
 
         if (emp.getPhoto() != null && !emp.getPhoto().isEmpty()) {
-            fotoLabel.setIcon(UIHelper.createRoundedImageFromPath(emp.getPhoto(), 120));
+            fotoLabel.setIcon(UIHelper.createRoundedImageFromPath(emp.getPhoto(), 96));
         } else {
-            String initial = emp.getName() != null && !emp.getName().isEmpty() ?
-                    String.valueOf(emp.getName().charAt(0)).toUpperCase() : "?";
-            fotoLabel.setIcon(createInitialIcon(initial, 120));
+            String initial = emp.getName() != null && !emp.getName().isEmpty()
+                    ? String.valueOf(emp.getName().charAt(0)).toUpperCase() : "?";
+            fotoLabel.setIcon(createInitialIcon(initial, 96));
         }
         fotoLabel.repaint();
+    }
+
+    /** Avatar placeholder — soft primary bg dengan silhouette line-style. */
+    private ImageIcon createAvatarPlaceholder(int size) {
+        BufferedImage bi = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2 = bi.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setColor(UIColors.PRIMARY_50);
+        g2.fillOval(0, 0, size, size);
+        g2.setColor(UIColors.PRIMARY_500);
+        g2.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        int cx = size / 2, cy = size / 2 - size / 10;
+        int hr = size / 7;
+        g2.drawOval(cx - hr, cy - hr, hr * 2, hr * 2);
+        int shoulderW = size / 3;
+        int bodyTop = cy + hr + size / 20;
+        g2.drawArc(cx - shoulderW, bodyTop, shoulderW * 2, shoulderW * 2, 0, 180);
+        g2.dispose();
+        return new ImageIcon(bi);
     }
 
     private ImageIcon createInitialIcon(String initial, int size) {
         BufferedImage bi = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2 = bi.createGraphics();
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.setColor(Constants.ACCENT_ACTION);
-        g2.fill(new java.awt.geom.Ellipse2D.Double(0, 0, size, size));
+        g2.setColor(UIColors.PRIMARY_500);
+        g2.fillOval(0, 0, size, size);
         g2.setColor(Color.WHITE);
-        g2.setFont(new Font(Constants.FONT_FAMILY, Font.BOLD, size / 2));
+        g2.setFont(new Font(UIFonts.FAMILY, Font.BOLD, size / 2));
         FontMetrics fm = g2.getFontMetrics();
         int tx = (size - fm.stringWidth(initial)) / 2;
         int ty = (size - fm.getHeight()) / 2 + fm.getAscent();
@@ -345,12 +244,14 @@ public class PresensiPanel extends JPanel {
         return new ImageIcon(bi);
     }
 
+    // ============================================================
+    // Camera
+    // ============================================================
     private void initCamera() {
         try {
             webcam = Webcam.getDefault();
             if (webcam == null) {
-                statusScanLabel.setText("Kamera tidak terdeteksi");
-                statusScanLabel.setForeground(Constants.DANGER);
+                statusBadge.update("Kamera tidak terdeteksi", StatusBadge.Tone.DANGER);
                 return;
             }
             webcam.setViewSize(WebcamResolution.VGA.getSize());
@@ -362,16 +263,13 @@ public class PresensiPanel extends JPanel {
 
             scanOverlay.setLayout(new BorderLayout());
             scanOverlay.add(webcamPanel, BorderLayout.CENTER);
-
             webcamPanel.start();
 
             scanTimer = new Timer(200, new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
+                @Override public void actionPerformed(ActionEvent e) {
                     if (!scanning || webcamPanel == null) return;
                     BufferedImage image = webcam.getImage();
                     if (image == null) return;
-                    scanOverlay.setCurrentImage(image);
                     String barcode = BarcodeUtil.decode(image);
                     if (barcode != null && !barcode.isEmpty()) {
                         long now = System.currentTimeMillis();
@@ -386,14 +284,13 @@ public class PresensiPanel extends JPanel {
             scanTimer.start();
         } catch (Exception e) {
             e.printStackTrace();
-            statusScanLabel.setText("Error kamera: " + e.getMessage());
-            statusScanLabel.setForeground(Constants.DANGER);
+            statusBadge.update("Error kamera: " + e.getMessage(), StatusBadge.Tone.DANGER);
         }
     }
 
     private void processBarcode(String barcode) {
         scanning = false;
-        scanOverlay.setBarcodeDetected(true);
+        scanOverlay.setState(ScanOverlayPanel.State.PROCESSING);
         scanOverlay.repaint();
 
         PresensiResult result = presensiController.processBarcodeWithType(barcode, selectedTipe);
@@ -401,50 +298,27 @@ public class PresensiPanel extends JPanel {
         if (result.isSuccess() && result.getEmployee() != null) {
             displayEmployeeInfo(result.getEmployee());
             String jamStr = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
-            updateStatusBadge(
-                result.getMessage() + " \u2014 " + jamStr,
-                Constants.SUCCESS_BG,
-                Constants.SUCCESS,
-                Constants.SUCCESS,
-                Constants.SUCCESS
-            );
+            statusBadge.update(result.getMessage() + " — " + jamStr, StatusBadge.Tone.SUCCESS);
             SoundUtil.beepSuccess();
-            scanOverlay.setScanSuccess(true);
+            scanOverlay.setState(ScanOverlayPanel.State.SUCCESS);
         } else if (!result.isSuccess() && result.getEmployee() != null) {
             displayEmployeeInfo(result.getEmployee());
-            updateStatusBadge(
-                result.getMessage(),
-                Constants.FAILED_BG,
-                Constants.DANGER,
-                Constants.DANGER,
-                Constants.DANGER
-            );
+            statusBadge.update(result.getMessage(), StatusBadge.Tone.DANGER);
             SoundUtil.beepError();
-            scanOverlay.setScanSuccess(false);
+            scanOverlay.setState(ScanOverlayPanel.State.ERROR);
         } else {
-            updateStatusBadge(
-                result.getMessage(),
-                Constants.FAILED_BG,
-                Constants.DANGER,
-                Constants.DANGER,
-                Constants.DANGER
-            );
+            statusBadge.update(result.getMessage(), StatusBadge.Tone.DANGER);
             SoundUtil.beepError();
-            scanOverlay.setScanSuccess(false);
+            scanOverlay.setState(ScanOverlayPanel.State.ERROR);
         }
         scanOverlay.repaint();
 
         Timer delayTimer = new Timer(3000, new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
+            @Override public void actionPerformed(ActionEvent e) {
                 scanning = true;
-                scanOverlay.setBarcodeDetected(false);
-                scanOverlay.setScanSuccess(false);
-                statusBadge.repaint();
-                statusDot.repaint();
-                statusScanLabel.setText("Menunggu Scan...");
-                statusScanLabel.setForeground(Constants.BADGE_TEXT);
+                scanOverlay.setState(ScanOverlayPanel.State.IDLE);
                 scanOverlay.repaint();
+                statusBadge.update("Menunggu Scan...", StatusBadge.Tone.INFO);
             }
         });
         delayTimer.setRepeats(false);
@@ -453,28 +327,28 @@ public class PresensiPanel extends JPanel {
 
     public void stopCamera() {
         if (scanTimer != null && scanTimer.isRunning()) scanTimer.stop();
-        if (webcam != null && webcam.isOpen()) {
-            webcam.close();
-        }
+        if (webcam != null && webcam.isOpen()) webcam.close();
     }
 
     public void startCamera() {
-        if (webcam != null && !webcam.isOpen()) {
-            webcam.open();
-        }
+        if (webcam != null && !webcam.isOpen()) webcam.open();
         if (webcamPanel != null) webcamPanel.start();
         if (scanTimer != null && !scanTimer.isRunning()) scanTimer.start();
         scanning = true;
     }
 
+    // ============================================================
+    // Overlay with corner brackets + edge outline
+    // ============================================================
     private static class ScanOverlayPanel extends JPanel {
-        private BufferedImage currentImage;
-        private boolean barcodeDetected = false;
-        private Boolean scanSuccess = null;
+        enum State { IDLE, PROCESSING, SUCCESS, ERROR }
+        private State state = State.IDLE;
 
-        void setCurrentImage(BufferedImage image) { this.currentImage = image; }
-        void setBarcodeDetected(boolean detected) { this.barcodeDetected = detected; }
-        void setScanSuccess(Boolean success) { this.scanSuccess = success; }
+        void setState(State s) { this.state = s; }
+
+        ScanOverlayPanel() {
+            setOpaque(false);
+        }
 
         @Override
         protected void paintComponent(Graphics g) {
@@ -485,31 +359,60 @@ public class PresensiPanel extends JPanel {
             int w = getWidth();
             int h = getHeight();
 
+            // Outer subtle rounded frame
+            g2.setColor(UIColors.NEUTRAL_200);
+            g2.setStroke(new BasicStroke(1f));
+            g2.draw(new RoundRectangle2D.Double(0.5, 0.5, w - 1, h - 1, 12, 12));
+
+            // Guide box — center 65% width, 35% height
             int gw = (int) (w * 0.65);
-            int gh = (int) (h * 0.30);
+            int gh = (int) (h * 0.35);
             int gx = (w - gw) / 2;
             int gy = (h - gh) / 2;
 
-            if (barcodeDetected && scanSuccess != null) {
-                Color fillColor = scanSuccess ? Constants.SCAN_SUCCESS_COLOR : Constants.SCAN_ERROR_COLOR;
-                Color borderColor = scanSuccess ? Constants.SCAN_SUCCESS_BORDER : Constants.SCAN_ERROR_BORDER;
-                g2.setColor(fillColor);
-                g2.fillRoundRect(gx, gy, gw, gh, 8, 8);
-                g2.setColor(borderColor);
-                g2.setStroke(new BasicStroke(3f));
-                g2.drawRoundRect(gx, gy, gw, gh, 8, 8);
-            } else {
-                g2.setColor(new Color(255, 255, 255, 150));
-                float[] dash = {10f, 6f};
-                g2.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f, dash, 0f));
-                g2.drawRoundRect(gx, gy, gw, gh, 8, 8);
+            Color bracketColor;
+            switch (state) {
+                case SUCCESS -> bracketColor = UIColors.SUCCESS_FG;
+                case ERROR   -> bracketColor = UIColors.DANGER_FG;
+                case PROCESSING -> bracketColor = UIColors.PRIMARY_600;
+                default -> bracketColor = UIColors.PRIMARY_500;
             }
 
-            g2.setColor(Constants.ACCENT_BLUE);
-            g2.setStroke(new BasicStroke(2f));
-            g2.drawRoundRect(0, 0, w - 1, h - 1, 8, 8);
+            // Semi-transparent tint bg saat sukses/error/processing
+            if (state != State.IDLE) {
+                Color tint = new Color(bracketColor.getRed(), bracketColor.getGreen(),
+                                       bracketColor.getBlue(), 30);
+                g2.setColor(tint);
+                g2.fill(new RoundRectangle2D.Double(gx, gy, gw, gh, 12, 12));
+            }
+
+            // Corner brackets
+            drawCorners(g2, gx, gy, gw, gh, bracketColor);
 
             g2.dispose();
+        }
+
+        private void drawCorners(Graphics2D g2, int x, int y, int w, int h, Color color) {
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            int len = Math.min(28, Math.min(w, h) / 4);
+            int r = 8; // radius corner
+            // top-left
+            g2.drawArc(x, y, r * 2, r * 2, 90, 90);
+            g2.drawLine(x + r, y, x + len, y);
+            g2.drawLine(x, y + r, x, y + len);
+            // top-right
+            g2.drawArc(x + w - r * 2, y, r * 2, r * 2, 0, 90);
+            g2.drawLine(x + w - len, y, x + w - r, y);
+            g2.drawLine(x + w, y + r, x + w, y + len);
+            // bottom-left
+            g2.drawArc(x, y + h - r * 2, r * 2, r * 2, 180, 90);
+            g2.drawLine(x, y + h - len, x, y + h - r);
+            g2.drawLine(x + r, y + h, x + len, y + h);
+            // bottom-right
+            g2.drawArc(x + w - r * 2, y + h - r * 2, r * 2, r * 2, 270, 90);
+            g2.drawLine(x + w, y + h - len, x + w, y + h - r);
+            g2.drawLine(x + w - len, y + h, x + w - r, y + h);
         }
     }
 }

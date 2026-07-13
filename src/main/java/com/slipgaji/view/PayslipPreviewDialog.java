@@ -1,7 +1,11 @@
 package com.slipgaji.view;
 
 import com.slipgaji.model.Payslip;
-import com.slipgaji.util.Constants;
+import com.slipgaji.ui.components.AppButton;
+import com.slipgaji.ui.components.AppCard;
+import com.slipgaji.ui.theme.UIColors;
+import com.slipgaji.ui.theme.UIFonts;
+import com.slipgaji.ui.theme.UIMetrics;
 import com.slipgaji.util.UIHelper;
 
 import javax.swing.*;
@@ -9,6 +13,9 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.io.File;
 
+/**
+ * PayslipPreviewDialog — HTML preview slip gaji dengan warna muted.
+ */
 public class PayslipPreviewDialog extends JDialog {
     private final Payslip payslip;
 
@@ -19,109 +26,112 @@ public class PayslipPreviewDialog extends JDialog {
     }
 
     private void initUI() {
-        setSize(620, 780);
+        setSize(640, 780);
         setLocationRelativeTo(getOwner());
         setResizable(true);
 
-        JPanel mainPanel = new JPanel(new BorderLayout());
-        mainPanel.setBackground(Constants.BG_DARK);
-        mainPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        JPanel mainPanel = new JPanel(new BorderLayout(0, UIMetrics.SPACE_16));
+        mainPanel.setBackground(UIColors.NEUTRAL_50);
+        mainPanel.setBorder(new EmptyBorder(UIMetrics.SPACE_24, UIMetrics.SPACE_24,
+                                             UIMetrics.SPACE_20, UIMetrics.SPACE_24));
 
-        // Info panel at top
-        JPanel infoCard = UIHelper.createCard("");
-        infoCard.setBorder(new EmptyBorder(0, 0, 0, 0));
+        AppCard card = new AppCard();
 
-        String html = buildPreviewHtml();
-        JLabel previewLabel = new JLabel(html);
-        previewLabel.setFont(Constants.FONT_BODY);
+        JLabel previewLabel = new JLabel(buildPreviewHtml());
+        previewLabel.setFont(UIFonts.BODY);
         previewLabel.setVerticalAlignment(SwingConstants.TOP);
 
         JScrollPane scrollPane = new JScrollPane(previewLabel);
-        scrollPane.setBorder(null);
-        scrollPane.getViewport().setBackground(Color.WHITE);
-        infoCard.add(scrollPane, BorderLayout.CENTER);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        scrollPane.getViewport().setBackground(UIColors.NEUTRAL_0);
+        card.addBody(scrollPane);
+        mainPanel.add(card, BorderLayout.CENTER);
 
-        // Buttons
-        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
-        btnPanel.setBackground(Constants.BG_DARK);
-        btnPanel.setBorder(new EmptyBorder(16, 0, 0, 0));
-
-        JButton openPdfBtn = UIHelper.createStyledButton("Buka File PDF", Constants.PRIMARY);
-        openPdfBtn.addActionListener(e -> openPdf());
-
-        JButton closeBtn = UIHelper.createStyledButton("Tutup", Constants.REFRESH_BTN);
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, UIMetrics.SPACE_8, 0));
+        btnPanel.setOpaque(false);
+        JButton closeBtn = AppButton.secondary("Tutup");
         closeBtn.addActionListener(e -> dispose());
-
-        btnPanel.add(openPdfBtn);
+        JButton openPdfBtn = AppButton.primary("Buka File PDF");
+        openPdfBtn.addActionListener(e -> openPdf());
         btnPanel.add(closeBtn);
-
-        mainPanel.add(infoCard, BorderLayout.CENTER);
+        btnPanel.add(openPdfBtn);
         mainPanel.add(btnPanel, BorderLayout.SOUTH);
+
         setContentPane(mainPanel);
     }
 
     private String buildPreviewHtml() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("<html><body style='font-family:Segoe UI;padding:24px;'>");
+        String primaryHex = hex(UIColors.PRIMARY_600);
+        String primary100Hex = hex(UIColors.PRIMARY_100);
+        String primary700Hex = hex(UIColors.PRIMARY_700);
+        String neutral800 = hex(UIColors.NEUTRAL_800);
+        String neutral600 = hex(UIColors.NEUTRAL_600);
+        String neutral200 = hex(UIColors.NEUTRAL_200);
+        String successBg = hex(UIColors.SUCCESS_BG);
+        String successFg = hex(UIColors.SUCCESS_FG);
+        String dangerFg = hex(UIColors.DANGER_FG);
 
-        // Header
-        sb.append("<div style='background:#6366F1;color:white;padding:20px;border-radius:8px;'>");
-        sb.append("<h2 style='margin:0'>SLIP GAJI KARYAWAN</h2>");
-        sb.append("<p style='margin:4px 0 0 0;color:#C7D2FE'>Periode: ").append(payslip.getPeriod()).append("</p>");
-        sb.append("</div>");
-        sb.append("<br>");
+        StringBuilder sb = new StringBuilder();
+        sb.append("<html><body style='font-family:").append(UIFonts.FAMILY).append(";padding:20px;'>");
+
+        // Header — soft primary bg, not neon
+        sb.append("<div style='background:").append(primary100Hex).append(";color:").append(primary700Hex)
+          .append(";padding:18px;border-radius:8px;'>");
+        sb.append("<h2 style='margin:0;font-size:16px'>SLIP GAJI KARYAWAN</h2>");
+        sb.append("<p style='margin:4px 0 0 0;color:").append(primaryHex).append(";font-size:12px'>Periode: ")
+          .append(payslip.getPeriod()).append("</p>");
+        sb.append("</div><br>");
 
         // Employee info
-        sb.append("<table style='width:100%'>");
-        sb.append(row("Nama", payslip.getEmployeeName()));
-        sb.append(row("ID Karyawan", payslip.getEmployeeIdCode()));
-        sb.append(row("Posisi", payslip.getPosition()));
-        sb.append(row("Departemen", payslip.getDepartment()));
+        sb.append("<table style='width:100%;color:").append(neutral800).append("'>");
+        sb.append(row("Nama", payslip.getEmployeeName(), neutral600, neutral800));
+        sb.append(row("ID Karyawan", payslip.getEmployeeIdCode(), neutral600, neutral800));
+        sb.append(row("Posisi", payslip.getPosition(), neutral600, neutral800));
+        sb.append(row("Departemen", payslip.getDepartment(), neutral600, neutral800));
         sb.append("</table>");
-        sb.append("<hr style='border:none;border-top:1px solid #E5E7EB;margin:12px 0'>");
+        sb.append("<hr style='border:none;border-top:1px solid ").append(neutral200).append(";margin:12px 0'>");
 
         // Attendance
-        sb.append("<h3 style='color:#111827;font-size:14px'>Kehadiran</h3>");
+        sb.append("<h3 style='color:").append(neutral800).append(";font-size:13px'>Kehadiran</h3>");
         sb.append("<table style='width:100%'>");
-        sb.append(row("Hari Hadir", payslip.getDaysPresent() + " hari"));
-        sb.append(row("Hari Absen", payslip.getDaysAbsent() + " hari"));
-        sb.append(row("Jam Lembur", payslip.getOvertimeHours() + " jam"));
-        if (payslip.isNightShift()) {
-            sb.append(row("Shift Malam", "Ya"));
-        }
+        sb.append(row("Hari Hadir", payslip.getDaysPresent() + " hari", neutral600, neutral800));
+        sb.append(row("Hari Absen", payslip.getDaysAbsent() + " hari", neutral600, neutral800));
+        sb.append(row("Jam Lembur", payslip.getOvertimeHours() + " jam", neutral600, neutral800));
+        if (payslip.isNightShift()) sb.append(row("Shift Malam", "Ya", neutral600, neutral800));
         sb.append("</table>");
-        sb.append("<hr style='border:none;border-top:1px solid #E5E7EB;margin:12px 0'>");
+        sb.append("<hr style='border:none;border-top:1px solid ").append(neutral200).append(";margin:12px 0'>");
 
-        // Salary
-        sb.append("<h3 style='color:#111827;font-size:14px'>Rincian Gaji</h3>");
+        // Salary breakdown
+        sb.append("<h3 style='color:").append(neutral800).append(";font-size:13px'>Rincian Gaji</h3>");
         sb.append("<table style='width:100%'>");
-        sb.append(row("Gaji Pokok", UIHelper.formatCurrency(payslip.getBaseSalary())));
-        sb.append(row("Uang Lembur", UIHelper.formatCurrency(payslip.getOvertimePay())));
-        sb.append(row("Tunjangan", UIHelper.formatCurrency(payslip.getAllowances())));
+        sb.append(row("Gaji Pokok", UIHelper.formatCurrency(payslip.getBaseSalary()), neutral600, neutral800));
+        sb.append(row("Uang Lembur", UIHelper.formatCurrency(payslip.getOvertimePay()), neutral600, neutral800));
+        sb.append(row("Tunjangan", UIHelper.formatCurrency(payslip.getAllowances()), neutral600, neutral800));
         if (payslip.getNightShiftIncentive() > 0) {
-            sb.append(row("Insentif Shift Malam", UIHelper.formatCurrency(payslip.getNightShiftIncentive())));
+            sb.append(row("Insentif Shift Malam", UIHelper.formatCurrency(payslip.getNightShiftIncentive()), neutral600, neutral800));
         }
-        sb.append(rowRed("Potongan Absen", "- " + UIHelper.formatCurrency(payslip.getDeductions())));
+        sb.append(row("Potongan Absen", "- " + UIHelper.formatCurrency(payslip.getDeductions()), neutral600, dangerFg));
         sb.append("</table>");
-        sb.append("<hr style='border:none;border-top:1px solid #E5E7EB;margin:12px 0'>");
+        sb.append("<hr style='border:none;border-top:1px solid ").append(neutral200).append(";margin:12px 0'>");
 
-        // Net salary
-        sb.append("<div style='background:#10B981;color:white;padding:16px;text-align:center;border-radius:8px;'>");
-        sb.append("<b style='font-size:16px'>GAJI BERSIH: ").append(UIHelper.formatCurrency(payslip.getNetSalary())).append("</b>");
+        // Net salary — muted success
+        sb.append("<div style='background:").append(successBg).append(";color:").append(successFg)
+          .append(";padding:14px;text-align:center;border-radius:8px;'>");
+        sb.append("<b style='font-size:15px'>GAJI BERSIH: ").append(UIHelper.formatCurrency(payslip.getNetSalary())).append("</b>");
         sb.append("</div>");
 
         sb.append("</body></html>");
         return sb.toString();
     }
 
-    private String row(String label, String value) {
-        return "<tr><td style='padding:5px 10px;color:#6B7280'>" + label
-                + "</td><td style='padding:5px 10px;font-weight:bold;color:#111827'>" + (value != null ? value : "-") + "</td></tr>";
+    private String row(String label, String value, String labelColor, String valueColor) {
+        return "<tr><td style='padding:5px 10px;color:" + labelColor + "'>" + label
+                + "</td><td style='padding:5px 10px;font-weight:bold;color:" + valueColor + "'>"
+                + (value != null ? value : "-") + "</td></tr>";
     }
 
-    private String rowRed(String label, String value) {
-        return "<tr><td style='padding:5px 10px;color:#6B7280'>" + label
-                + "</td><td style='padding:5px 10px;font-weight:bold;color:#EF4444'>" + value + "</td></tr>";
+    private static String hex(Color c) {
+        return String.format("#%02x%02x%02x", c.getRed(), c.getGreen(), c.getBlue());
     }
 
     private void openPdf() {

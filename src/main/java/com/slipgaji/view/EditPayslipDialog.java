@@ -2,7 +2,11 @@ package com.slipgaji.view;
 
 import com.slipgaji.model.Payslip;
 import com.slipgaji.service.DatabaseService;
-import com.slipgaji.util.Constants;
+import com.slipgaji.ui.components.AppButton;
+import com.slipgaji.ui.components.AppTextField;
+import com.slipgaji.ui.theme.UIColors;
+import com.slipgaji.ui.theme.UIFonts;
+import com.slipgaji.ui.theme.UIMetrics;
 import com.slipgaji.util.UIHelper;
 import com.slipgaji.util.ValidationUtil;
 
@@ -14,6 +18,9 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.io.File;
 
+/**
+ * EditPayslipDialog — form edit data slip gaji (nama, gaji, hari, dsb.).
+ */
 public class EditPayslipDialog extends JDialog {
 
     private final DatabaseService db;
@@ -28,7 +35,7 @@ public class EditPayslipDialog extends JDialog {
     private boolean saved = false;
 
     public EditPayslipDialog(Window owner, Payslip payslip) {
-        super(owner, "Edit Data - " + payslip.getEmployeeName(), ModalityType.APPLICATION_MODAL);
+        super(owner, "Edit Data — " + payslip.getEmployeeName(), ModalityType.APPLICATION_MODAL);
         this.payslip = payslip;
         this.db = DatabaseService.getInstance();
         initUI();
@@ -37,136 +44,143 @@ public class EditPayslipDialog extends JDialog {
     public boolean isSaved() { return saved; }
 
     private void initUI() {
-        setSize(520, 620);
+        setSize(540, 640);
         setLocationRelativeTo(getOwner());
         setResizable(false);
 
-        JPanel mainPanel = new JPanel(new BorderLayout());
-        mainPanel.setBackground(Constants.BG_DARK);
-        mainPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        JPanel mainPanel = new JPanel(new BorderLayout(0, UIMetrics.SPACE_16));
+        mainPanel.setBackground(UIColors.NEUTRAL_0);
+        mainPanel.setBorder(new EmptyBorder(UIMetrics.SPACE_24, UIMetrics.SPACE_24,
+                                             UIMetrics.SPACE_20, UIMetrics.SPACE_24));
 
-        JPanel formPanel = new JPanel(new GridBagLayout());
-        formPanel.setOpaque(false);
+        JLabel title = new JLabel("Edit Data Slip Gaji");
+        title.setFont(UIFonts.H1);
+        title.setForeground(UIColors.NEUTRAL_800);
+        mainPanel.add(title, BorderLayout.NORTH);
+
+        JPanel form = new JPanel(new GridBagLayout());
+        form.setOpaque(false);
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(6, 8, 6, 8);
+        gbc.insets = new Insets(6, 6, 6, 6);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
         int row = 0;
-        nameField = addEditRow(formPanel, gbc, row++, "Nama:", payslip.getEmployeeName());
-        emailField = addEditRow(formPanel, gbc, row++, "Email:", payslip.getEmployeeEmail());
+        nameField = addRow(form, gbc, row++, "Nama:", payslip.getEmployeeName());
+        emailField = addRow(form, gbc, row++, "Email:", payslip.getEmployeeEmail());
 
         // Position combo
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1; gbc.weightx = 0.0;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.anchor = GridBagConstraints.WEST;
-        JLabel posLabel = new JLabel("Posisi:");
-        posLabel.setFont(Constants.FONT_BODY);
-        posLabel.setForeground(Constants.TEXT_SECONDARY);
-        formPanel.add(posLabel, gbc);
+        addComboRow(form, gbc, row++, "Posisi:",
+                positionCombo = new JComboBox<>(new String[]{"Crewstore", "Store Leader", "Manager"}));
+        selectComboValue(positionCombo, payslip.getPosition());
 
-        gbc.gridx = 1; gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        positionCombo = new JComboBox<>(new String[]{"Crewstore", "Store Leader", "Manager"});
-        positionCombo.setFont(Constants.FONT_BODY);
-        String currentPos = payslip.getPosition();
-        if (currentPos != null) {
-            for (int i = 0; i < positionCombo.getItemCount(); i++) {
-                if (positionCombo.getItemAt(i).equalsIgnoreCase(currentPos)) {
-                    positionCombo.setSelectedIndex(i);
-                    break;
-                }
-            }
-        }
-        formPanel.add(positionCombo, gbc);
-        row++;
-        departmentField = addEditRow(formPanel, gbc, row++, "Departemen:", payslip.getDepartment());
+        departmentField = addRow(form, gbc, row++, "Departemen:", payslip.getDepartment());
 
         // Employee type
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1; gbc.weightx = 0.0;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.anchor = GridBagConstraints.WEST;
-        JLabel typeLabel = new JLabel("Tipe Karyawan:");
-        typeLabel.setFont(Constants.FONT_BODY);
-        typeLabel.setForeground(Constants.TEXT_SECONDARY);
-        formPanel.add(typeLabel, gbc);
-
-        gbc.gridx = 1; gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        typeCombo = new JComboBox<>(new String[]{"TETAP", "PKWT", "KANTOR"});
-        typeCombo.setFont(Constants.FONT_BODY);
-        // Load employment_type from employees table
-        String empTypeSql = "SELECT employment_type FROM employees WHERE id = ?";
-        try (java.sql.Connection conn = db.getConnection();
-             java.sql.PreparedStatement ps = conn.prepareStatement(empTypeSql)) {
-            ps.setInt(1, payslip.getEmployeeId());
-            try (java.sql.ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    String type = rs.getString("employment_type");
-                    if (type != null) {
-                        for (int i = 0; i < typeCombo.getItemCount(); i++) {
-                            if (typeCombo.getItemAt(i).equalsIgnoreCase(type.trim())) {
-                                typeCombo.setSelectedIndex(i);
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (java.sql.SQLException e) {
-            e.printStackTrace();
-        }
-        formPanel.add(typeCombo, gbc);
-        row++;
+        addComboRow(form, gbc, row++, "Tipe Karyawan:",
+                typeCombo = new JComboBox<>(new String[]{"TETAP", "PKWT", "KANTOR"}));
+        loadEmploymentType();
 
         // Separator
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
-        gbc.insets = new Insets(12, 8, 12, 8);
-        JSeparator sep = new JSeparator();
-        sep.setForeground(Constants.BORDER_COLOR);
-        formPanel.add(sep, gbc);
-        row++;
-        gbc.insets = new Insets(6, 8, 6, 8);
+        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        gbc.insets = new Insets(UIMetrics.SPACE_8, 6, UIMetrics.SPACE_8, 6);
+        JPanel sep = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                g.setColor(UIColors.NEUTRAL_200);
+                g.drawLine(0, 0, getWidth(), 0);
+            }
+        };
+        sep.setOpaque(false);
+        sep.setPreferredSize(new Dimension(0, 1));
+        form.add(sep, gbc);
+        gbc.insets = new Insets(6, 6, 6, 6);
+        gbc.gridwidth = 1;
 
-        salaryField = addEditRow(formPanel, gbc, row++, "Gaji Pokok (Rp):", String.valueOf((int) payslip.getBaseSalary()));
-        presentField = addEditRow(formPanel, gbc, row++, "Hari Hadir:", String.valueOf(payslip.getDaysPresent()));
-        absentField = addEditRow(formPanel, gbc, row++, "Hari Absen:", String.valueOf(payslip.getDaysAbsent()));
-        overtimeField = addEditRow(formPanel, gbc, row++, "Jam Lembur:", String.valueOf((int) payslip.getOvertimeHours()));
+        salaryField = addRow(form, gbc, row++, "Gaji Pokok (Rp):", String.valueOf((int) payslip.getBaseSalary()));
+        presentField = addRow(form, gbc, row++, "Hari Hadir:", String.valueOf(payslip.getDaysPresent()));
+        absentField = addRow(form, gbc, row++, "Hari Absen:", String.valueOf(payslip.getDaysAbsent()));
+        overtimeField = addRow(form, gbc, row++, "Jam Lembur:", String.valueOf((int) payslip.getOvertimeHours()));
+
+        JScrollPane scroll = new JScrollPane(form);
+        scroll.setBorder(null);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        mainPanel.add(scroll, BorderLayout.CENTER);
 
         // Buttons
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.anchor = GridBagConstraints.CENTER;
-        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, UIMetrics.SPACE_8, 0));
         btnPanel.setOpaque(false);
+        btnPanel.setBorder(new EmptyBorder(UIMetrics.SPACE_16, 0, 0, 0));
 
-        JButton saveBtn = UIHelper.createStyledButton("Simpan", Constants.ACCENT);
-        saveBtn.addActionListener(e -> saveData());
-        JButton cancelBtn = UIHelper.createStyledButton("Batal", Constants.REFRESH_BTN);
+        JButton cancelBtn = AppButton.secondary("Batal");
         cancelBtn.addActionListener(e -> dispose());
+        JButton saveBtn = AppButton.primary("Simpan");
+        saveBtn.addActionListener(e -> saveData());
 
-        btnPanel.add(saveBtn);
         btnPanel.add(cancelBtn);
-        formPanel.add(btnPanel, gbc);
+        btnPanel.add(saveBtn);
+        mainPanel.add(btnPanel, BorderLayout.SOUTH);
 
-        mainPanel.add(formPanel, BorderLayout.CENTER);
         setContentPane(mainPanel);
     }
 
-    private JTextField addEditRow(JPanel panel, GridBagConstraints gbc, int row, String label, String value) {
+    private void loadEmploymentType() {
+        String sql = "SELECT employment_type FROM employees WHERE id = ?";
+        try (Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, payslip.getEmployeeId());
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) selectComboValue(typeCombo, rs.getString("employment_type"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void selectComboValue(JComboBox<String> combo, String value) {
+        if (value == null) return;
+        for (int i = 0; i < combo.getItemCount(); i++) {
+            if (combo.getItemAt(i).equalsIgnoreCase(value.trim())) {
+                combo.setSelectedIndex(i);
+                return;
+            }
+        }
+    }
+
+    private JTextField addRow(JPanel panel, GridBagConstraints gbc, int row, String label, String value) {
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1; gbc.weightx = 0.0;
         gbc.fill = GridBagConstraints.NONE;
         gbc.anchor = GridBagConstraints.WEST;
         JLabel lbl = new JLabel(label);
-        lbl.setFont(Constants.FONT_BODY);
-        lbl.setForeground(Constants.TEXT_SECONDARY);
+        lbl.setFont(UIFonts.LABEL);
+        lbl.setForeground(UIColors.NEUTRAL_600);
+        lbl.setPreferredSize(new Dimension(140, 24));
         panel.add(lbl, gbc);
 
         gbc.gridx = 1; gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        JTextField field = UIHelper.createStyledTextField("");
-        field.setText(value != null ? value : "");
+        JTextField field = AppTextField.create("");
+        if (value != null) field.setText(value);
         panel.add(field, gbc);
         return field;
+    }
+
+    private void addComboRow(JPanel panel, GridBagConstraints gbc, int row, String label, JComboBox<String> combo) {
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1; gbc.weightx = 0.0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.WEST;
+        JLabel lbl = new JLabel(label);
+        lbl.setFont(UIFonts.LABEL);
+        lbl.setForeground(UIColors.NEUTRAL_600);
+        lbl.setPreferredSize(new Dimension(140, 24));
+        panel.add(lbl, gbc);
+
+        gbc.gridx = 1; gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        combo.setFont(UIFonts.BODY);
+        combo.setBackground(UIColors.NEUTRAL_0);
+        combo.setPreferredSize(new Dimension(0, UIMetrics.INPUT_HEIGHT));
+        panel.add(combo, gbc);
     }
 
     private void saveData() {
@@ -180,15 +194,12 @@ public class EditPayslipDialog extends JDialog {
         String absentStr = absentField.getText().trim();
         String overtimeStr = overtimeField.getText().trim();
 
-        if (name.isEmpty()) {
-            UIHelper.showError(this, "Nama tidak boleh kosong.");
-            return;
-        }
+        if (name.isEmpty()) { UIHelper.showError(this, "Nama tidak boleh kosong."); return; }
         if (!ValidationUtil.isValidEmail(email)) {
             UIHelper.showError(this, "Format email tidak valid: " + email);
             return;
         }
-        // Parse salary (handle Indonesian format: . = ribuan, , = desimal)
+
         double salary;
         try {
             String cleanSalary = salaryStr.replace(".", "").replace(",", ".");
@@ -225,40 +236,26 @@ public class EditPayslipDialog extends JDialog {
         emp.setEmploymentType(type);
         db.updateEmployee(emp);
 
-        // Hapus PDF lama jika ada — karena data berubah, PDF harus diregenerate
+        // Delete old PDF & clear path
         if (payslip.getPdfPath() != null && !payslip.getPdfPath().isEmpty()) {
             File oldPdf = new File(payslip.getPdfPath());
-            if (oldPdf.exists()) {
-                oldPdf.delete();
-            }
-            // Kosongkan path PDF di database
-            try (java.sql.Connection conn = db.getConnection();
-                 java.sql.PreparedStatement ps = conn.prepareStatement(
-                     "UPDATE payslips SET pdf_path = NULL WHERE id = ?")) {
+            if (oldPdf.exists()) oldPdf.delete();
+            try (Connection conn = db.getConnection();
+                 PreparedStatement ps = conn.prepareStatement("UPDATE payslips SET pdf_path = NULL WHERE id = ?")) {
                 ps.setInt(1, payslip.getId());
                 ps.executeUpdate();
-            } catch (java.sql.SQLException e) {
-                e.printStackTrace();
-            }
+            } catch (SQLException e) { e.printStackTrace(); }
             payslip.setPdfPath(null);
         }
 
-        // Update raw payslip fields (base_salary, days, overtime_hours)
         db.updatePayslipData(payslip.getId(), salary, present, absent, overtime);
 
-        // ===== RECALCULATE computed fields =====
-        String prefix;
-        switch (position.toUpperCase()) {
-            case "STORE LEADER":
-                prefix = "store_leader";
-                break;
-            case "MANAGER":
-                prefix = "manager";
-                break;
-            default:
-                prefix = "crewstore";
-                break;
-        }
+        // Recalculate computed fields
+        String prefix = switch (position.toUpperCase()) {
+            case "STORE LEADER" -> "store_leader";
+            case "MANAGER" -> "manager";
+            default -> "crewstore";
+        };
 
         double overtimeRate = db.getSettingDouble(prefix + "_overtime_rate_per_hour", 25000);
         int divisor = (int) db.getSettingDouble(prefix + "_daily_rate_divisor", 22);
@@ -270,12 +267,10 @@ public class EditPayslipDialog extends JDialog {
         double recalcDeductions = dailyRate * absent;
         double recalcOvertimePay = overtime * overtimeRate;
         double recalcAllowances = transport + meal;
-
         double recalcNightShiftIncentive = payslip.getNightShiftIncentive();
         if (recalcNightShiftIncentive == 0 && payslip.isNightShift()) {
             recalcNightShiftIncentive = nightShiftRate;
         }
-
         double recalcNetSalary = salary - recalcDeductions + recalcOvertimePay + recalcAllowances + recalcNightShiftIncentive;
 
         String recalcSql = "UPDATE payslips SET overtime_pay=?, deductions=?, allowances=?, net_salary=?, night_shift_incentive=? WHERE id=?";

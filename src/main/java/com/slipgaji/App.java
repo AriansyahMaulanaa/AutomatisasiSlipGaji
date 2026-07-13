@@ -67,6 +67,9 @@ public class App {
             UIManager.put("defaultFont", new Font(Constants.FONT_FAMILY, Font.PLAIN, 13));
 
             UIManager.setLookAndFeel(new FlatLightLaf());
+
+            // Apply enterprise theme tokens (soft blue, muted semantic, flat)
+            com.slipgaji.ui.theme.Theme.applyGlobals();
         } catch (Exception e) {
             System.err.println("Failed to initialize LaF");
         }
